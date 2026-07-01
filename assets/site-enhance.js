@@ -368,6 +368,47 @@
     document.body.appendChild(slot);
   }
 
+  function addExperienceInfo() {
+    if (!currentPage) return;
+    const section = document.createElement("section");
+    section.className = "cpi-experience-info";
+    section.innerHTML = `
+      <div class="cpi-experience-inner">
+        <p class="cpi-info-kicker">${currentPage.category}</p>
+        <h2>${currentPage.title}</h2>
+        <p>${currentPage.desc} 你可以直接体验当前模板，也可以使用右上角分享面板填写名字和祝福语，生成适合发送给朋友的专属链接。</p>
+        <div class="cpi-info-grid">
+          <div>
+            <strong>适合场景</strong>
+            <span>${sceneText(currentPage.category)}</span>
+          </div>
+          <div>
+            <strong>分享方式</strong>
+            <span>支持复制链接、系统分享、微信、小红书、微博，以及生成可保存的分享图。</span>
+          </div>
+          <div>
+            <strong>广告位置</strong>
+            <span>广告预留在体验说明和相关推荐附近，避开游戏、手势和主要交互控件。</span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(section);
+  }
+
+  function sceneText(category) {
+    const scenes = {
+      "节日祝福": "520、七夕、生日、圣诞、新年和纪念日祝福。",
+      "告白": "表白、纪念日、惊喜链接和私密祝福。",
+      "互动游戏": "朋友挑战、分数分享、轻量休闲和社交转发。",
+      "像素艺术": "动态头像、可爱视觉背景和社交内容配图。",
+      "手势特效": "互动展示、镜头演示、创意实验和直播视觉。",
+      "剑阵特效": "玄幻视觉展示、短视频素材预览和沉浸式背景。",
+      "魔法阵": "魔法视觉背景、手势互动展示和短视频开场。"
+    };
+    return scenes[category] || "互动展示、社交分享和创意视觉体验。";
+  }
+
   function addRelated() {
     if (!currentPage) return;
     const related = pages
@@ -430,6 +471,7 @@
     addTopbar();
     applyPersonalText();
     window.setTimeout(() => {
+      addExperienceInfo();
       addAdSlot();
       addRelated();
     }, 1200);
