@@ -376,6 +376,12 @@
             </a>
           `).join("")}
         </div>
+        <div class="cpi-site-links">
+          <a href="${prefix}about.html">关于</a>
+          <a href="${prefix}privacy.html">隐私政策</a>
+          <a href="${prefix}terms.html">使用条款</a>
+          <a href="${prefix}contact.html">联系合作</a>
+        </div>
       </div>
     `;
     document.body.appendChild(section);

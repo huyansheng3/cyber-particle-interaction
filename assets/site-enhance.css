@@ -229,6 +229,24 @@
   line-height: 1.55;
 }
 
+.cpi-site-links {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  font-size: 12px;
+}
+
+.cpi-site-links a {
+  color: rgba(238, 246, 255, 0.62);
+  text-decoration: none;
+}
+
+.cpi-site-links a:hover {
+  color: var(--cpi-cyan);
+}
+
 .cpi-ad-slot {
   position: relative;
   z-index: 10;
