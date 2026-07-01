@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Miracle Heart - Silk Confession Edition</title>
+    <!-- Google Fonts removed for CORS compliance -->
+    <style>
+        body {
+            margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex; justify-content: center; align-items: center; height: 100vh; user-select: none;
+            transition: background 1s ease;
+        }
+        body.bg-black { background: radial-gradient(ellipse at center bottom, #0c0714 0%, #05030a 50%, #020105 100%); }
+        body.bg-deep { background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%); }
+        body.bg-warm { background: radial-gradient(circle at center, #2e1a1a 0%, #0f0505 100%); }
+        body.bg-aurora { background: radial-gradient(circle at top, #0f2027 0%, #203a43 50%, #2c5364 100%); }
+
+        /* === 首页启动画面 === */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at center bottom, #160c24 0%, #05030a 60%, #020105 100%);
+            z-index: 200; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; color: #fff; transition: opacity 1s ease;
+        }
+        #start-title {
+            font-family: 'Great Vibes', 'Times New Roman', serif; font-size: 4.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #ffb6c1 50%, #ffd700 100%);
+            background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px;
+            filter: drop-shadow(0 0 20px rgba(255,182,193,0.6));
+        }
+        #start-sub { color: #bfaec6; letter-spacing: 6px; font-size: 0.85rem; margin-bottom: 30px; text-transform: uppercase; }
+        #start-hint {
+            color: #dbcee4; font-size: 14px; line-height: 2.2; text-align: center; margin-bottom: 35px;
+            background: rgba(255,255,255,0.05); padding: 15px 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        #btn-start {
+            padding: 16px 60px; font-size: 18px;
+            background: linear-gradient(135deg, #ff758c, #ff7eb3); border: none; border-radius: 40px;
+            color: #fff; font-weight: bold; cursor: pointer; letter-spacing: 2px;
+            box-shadow: 0 0 40px rgba(255, 117, 140, 0.4); transition: transform 0.3s, box-shadow 0.3s;
+        }
+        #btn-start:hover { transform: scale(1.06); box-shadow: 0 0 60px rgba(255, 117, 140, 0.7); }
+
+        /* === 主标题 === */
+        #main-title {
+            position: absolute; top: 25px; left: 0; width: 100%; text-align: center; z-index: 50; pointer-events: none; opacity: 0;
+            font-size: 4.5rem; white-space: nowrap; transition: all 0.5s ease; will-change: transform, opacity;
+        }
+        .style-xmas {
+            background: linear-gradient(to bottom, #ff9a9e, #fecfef); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 25px rgba(255,154,158,0.5));
+        }
+
+        /* === 相机预览 === */
+        #video-container {
+            position: absolute; bottom: 30px; left: 30px; width: 150px; height: 112px; z-index: 20;
+            border: 1px solid rgba(255, 182, 193, 0.4); border-radius: 16px; overflow: hidden;
+            transform: scaleX(-1); box-shadow: 0 10px 30px rgba(0,0,0,0.6); background: #000;
+            transition: border-color 0.5s ease, opacity 0.5s;
+        }
+        #video-container.hidden-cam { opacity: 0; pointer-events: none; }
+        #input-video { width: 100%; height: 100%; object-fit: cover; opacity: 0.45; position: absolute; top: 0; left: 0; }
+        #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; mix-blend-mode: screen; }
+
+        /* === 照片展示层 === */
+        #html-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(3, 3, 3, 0.3); backdrop-filter: blur(0px);
+            z-index: 5; display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        /* 定制：为单张照片加入高级的果冻回弹(Pop-out)动效 */
+        #single-photo-view {
+            max-width: 38vw; max-height: 50vh; object-fit: contain;
+            border: 4px solid rgba(255,255,255,0.95); border-radius: 16px;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.8), 0 0 50px rgba(255, 182, 193, 0.4);
+            display: none; transform: scale(0.85); opacity: 0;
+            transition: opacity 0.3s ease-in-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #wall-view {
+            display: none; width: 85%; height: 85%; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 20px; overflow-y: auto; padding: 30px; box-sizing: border-box; align-content: start;
+            mask-image: linear-gradient(to bottom, transparent 0%, white 8%, white 92%, transparent 100%);
+        }
+        @keyframes meteorFly {
+            0% { transform: translate(400px, -400px) scale(0.4) rotate(10deg); opacity: 0; filter: blur(8px); }
+            100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; filter: blur(0px); }
+        }
+        .meteor-img {
+            width: 100%; height: 160px; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,0.4);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7); opacity: 0; transition: transform 0.5s ease, border-color 0.5s ease;
+            will-change: transform, opacity;
+        }
+        .meteor-img:hover { transform: scale(1.06); border-color: rgba(255,182,193,1); box-shadow: 0 15px 35px rgba(255,182,193,0.4); }
+        
+        #ring-scene { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+        #ring-view { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: flat; }
+        .ring-img {
+            position: absolute; width: 190px; height: 142px; object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.85); border-radius: 14px; box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+            margin-left: -95px; margin-top: -71px;
+            transition: border-color 0.4s, box-shadow 0.4s, filter 0.6s ease, transform 0.3s cubic-bezier(0.1, 0.8, 0.2, 1);
+            filter: brightness(1) blur(0px); will-change: transform;
+        }
+        .ring-img.is-background { filter: brightness(0.4) blur(2px); border-color: rgba(255, 182, 193, 0.3); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .ring-img:hover { border-color: #ffb6c1; box-shadow: 0 20px 60px rgba(255,182,193,0.6); filter: brightness(1.2) blur(0px) !important; scale: 1.1; }
+        
+        .show-zoom #html-overlay { opacity: 1; pointer-events: auto; backdrop-filter: blur(12px); background: rgba(5,3,10,0.5); }
+        .show-zoom #single-photo-view { display: block; }
+        .show-wall #html-overlay { opacity: 1; pointer-events: auto; background: rgba(5, 3, 10, 0.9); backdrop-filter: blur(20px); }
+        .show-wall #wall-view { display: grid; }
+        .show-ring #html-overlay { opacity: 1; pointer-events: auto; background: rgba(5, 3, 10, 0.65); backdrop-filter: blur(16px); }
+        .show-ring #ring-scene { display: block; }
+
+        /* === UI 信息层 === */
+        #ui-layer { position: absolute; bottom: 40px; left: 200px; z-index: 10; pointer-events: none; color: #fff; transition: opacity 0.5s; }
+        #status-text { font-size: 0.9rem; font-weight: 300; letter-spacing: 1px; color: #eaeaea; display: flex; align-items: center; gap: 10px; margin-bottom: 8px;}
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff758c; display: inline-block; animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 117, 140, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 117, 140, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 117, 140, 0); }
+        }
+
+        /* === 设置面板 === */
+        #toggle-btn { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; background: rgba(255,255,255,0.06); border-radius: 50%; color: #ccc; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; z-index: 101; display: flex; justify-content: center; align-items: center; font-size: 18px; }
+        #toggle-btn:hover { background: rgba(255,117,140,0.2); color: #ff758c; }
+        #ui-panel { position: absolute; top: 76px; right: 24px; width: 290px; max-height: 82vh; overflow-y: auto; background: rgba(12, 7, 20, 0.9); backdrop-filter: blur(18px); padding: 18px; border-radius: 14px; color: #ddd; border: 1px solid rgba(255,255,255,0.08); z-index: 100; transition: transform 0.4s ease, opacity 0.4s; box-shadow: -5px 0 30px rgba(0,0,0,0.5); }
+        #ui-panel.hidden { transform: translateX(130%); opacity: 0; pointer-events: none; }
+        .ctrl-section { border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 14px; margin-bottom: 14px; }
+        .ctrl-group { margin-bottom: 8px; }
+        .ctrl-group label { display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 4px; }
+        .ctrl-group h3 { margin: 0 0 8px 0; font-size: 13px; color: #ff758c; font-weight: bold; letter-spacing: 1px; }
+        input[type=range] { width: 100%; accent-color: #ff758c; cursor: pointer; background: transparent; }
+        input[type=text] { width: 100%; padding: 7px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: #ff758c; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+        select { width: 100%; padding: 5px; background: #1a1a24; border: 1px solid #444; color: #ddd; border-radius: 4px; font-size: 12px; }
+        .ctrl-btn { width: 100%; padding: 7px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #ccc; cursor: pointer; border-radius: 6px; font-size: 11px; }
+        .ctrl-btn:hover { background: rgba(255,117,140,0.2); color: #fff; }
+        .ctrl-row { display: flex; gap: 8px; align-items: center; }
+        #canvas-wrapper { position: relative; background: transparent; overflow: hidden; width: 100vw; height: 100vh; will-change: transform; }
+        #canvas-container { width: 100%; height: 100%; display: block; will-change: transform; }
+
+        /* === QR 分享模态框 === */
+        #qr-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 300; display: none; justify-content: center; align-items: center;
+            background: rgba(5,3,10,0.88); backdrop-filter: blur(20px);
+            opacity: 0; transition: opacity 0.5s ease;
+        }
+        #qr-modal.show { display: flex; opacity: 1; }
+        #qr-modal-box {
+            background: linear-gradient(145deg, rgba(25,15,35,0.98), rgba(15,10,25,0.98));
+            border: 1px solid rgba(255,182,193,0.25); border-radius: 24px;
+            padding: 35px 40px; text-align: center;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 60px rgba(255,182,193,0.1);
+            transform: scale(0.85) translateY(20px); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #qr-modal.show #qr-modal-box { transform: scale(1) translateY(0); }
+        #qr-modal-box canvas { border-radius: 16px; box-shadow: 0 0 40px rgba(255,182,193,0.15); }
+        #qr-modal-box h3 { color: #ffb6c1; font-family: 'Great Vibes', cursive; font-size: 2rem; margin: 0 0 4px 0; }
+        #qr-modal-box p { color: #c0b0c8; font-size: 0.85rem; margin: 12px 0 4px; letter-spacing: 1px; }
+        #qr-close {
+            margin-top: 18px; padding: 9px 35px; background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; color: #ccc; cursor: pointer;
+            font-size: 13px; transition: all 0.3s; letter-spacing: 1px;
+        }
+        #qr-close:hover { background: rgba(255,117,140,0.2); color: #fff; border-color: rgba(255,117,140,0.3); }
+        #qr-url { color: #665577; font-size: 0.7rem; word-break: break-all; margin-top: 8px; padding: 0 10px; }
+
+    </style>
+    <script async src="lib/extra/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "./lib/three.0.160.0.module.js",
+        "three/addons/postprocessing/EffectComposer.js": "./lib/three-addons/postprocessing/EffectComposer.js",
+        "three/addons/postprocessing/RenderPass.js": "./lib/three-addons/postprocessing/RenderPass.js",
+        "three/addons/postprocessing/UnrealBloomPass.js": "./lib/three-addons/postprocessing/UnrealBloomPass.js",
+        "three/addons/postprocessing/Pass.js": "./lib/three-addons/postprocessing/Pass.js",
+        "three/addons/postprocessing/ShaderPass.js": "./lib/three-addons/postprocessing/ShaderPass.js",
+        "three/addons/shaders/CopyShader.js": "./lib/three-addons/shaders/CopyShader.js",
+        "three/addons/shaders/LuminosityHighPassShader.js": "./lib/three-addons/shaders/LuminosityHighPassShader.js",
+        "three/addons/environments/RoomEnvironment.js": "./lib/three-addons/environments/RoomEnvironment.js"
+      }
+    }
+    </script>
+</head>
+<body class="bg-black">
+
+    <div id="start-screen">
+        <div id="start-title">Miracle Heart</div>
+        <div id="start-sub">Interactive Nebula Confession</div>
+        <div id="start-hint">
+            🤌 左手捏合 · 唤醒记忆碎片 &nbsp;|&nbsp; ✌️ 左手剪刀 · 浮光三维画廊<br>
+            ✊ 左手握拳 · 隐入星云空间 &nbsp;|&nbsp; 🖐️ 右手开合 · 掌控宇宙爱心的跳动
+        </div>
+        <button id="btn-start">✨ 开启梦幻之旅</button>
+    </div>
+
+    <div id="main-title" class="style-xmas">Miracle Heart</div>
+    <button id="toggle-btn">⚙️</button>
+
+    <div id="canvas-wrapper">
+        <div id="canvas-container"></div>
+        <div id="video-container">
+            <video id="input-video" autoplay playsinline muted></video>
+            <canvas id="skeleton-canvas"></canvas>
+        </div>
+        <div id="html-overlay">
+            <img id="single-photo-view" src="" alt="Memory" />
+            <div id="wall-view"></div>
+            <div id="ring-scene"><div id="ring-view"></div></div>
+        </div>
+        <div id="ui-layer">
+            <div id="status-text"><span class="status-dot" id="status-dot"></span><span id="status-msg">等待启动...</span></div>
+        </div>
+    </div>
+
+    <div id="ui-panel">
+        <div class="ctrl-section">
+            <h3>📝 表白文字自定义</h3>
+            <div class="ctrl-group"><label>标题内容</label><input type="text" id="custom-text" value="Miracle Heart"></div>
+            <div class="ctrl-group"><label>字体大小 <span id="val-font-size">4.5</span>rem</label><input type="range" id="font-size" min="2.0" max="9.0" step="0.5" value="4.5"></div>
+            <div class="ctrl-group">
+                <label>字体</label>
+                <select id="font-family">
+                    <option value="'Great Vibes', cursive">Great Vibes (浪漫手写)</option>
+                    <option value="'Ma Shan Zheng', cursive">马善政 (毛笔体)</option>
+                    <option value="'Long Cang', cursive">龙苍 (灵动草书)</option>
+                    <option value="'Noto Sans SC', sans-serif">思源黑体</option>
+                </select>
+            </div>
+        </div>
+        <div class="ctrl-section">
+            <h3>🎨 场景设置</h3>
+            <div class="ctrl-group">
+                <label>背景主题</label>
+                <select id="bg-select">
+                    <option value="black">🌌 浪漫星芒夜</option>
+                    <option value="deep">🌃 深邃蓝</option>
+                    <option value="warm">🔥 暖冬红晕</option>
+                    <option value="aurora">❄️ 极光幻境</option>
+                </select>
+            </div>
+            <div class="ctrl-group"><button id="btn-toggle-cam" class="ctrl-btn">📹 显示/隐藏 摄像头</button></div>
+            <div class="ctrl-group"><button id="btn-fullscreen" class="ctrl-btn">⛶ 全屏模式</button></div>
+            <div class="ctrl-group"><button id="btn-share-qr" class="ctrl-btn">📱 分享二维码</button></div>
+        </div>
+        <div class="ctrl-section">
+            <h3>🎵 记忆载入 (表白必备)</h3>
+            <div class="ctrl-group">
+                <button class="ctrl-btn" onclick="document.getElementById('music-input').click()">📁 上传专属背景音乐 (MP3)</button>
+                <input type="file" id="music-input" accept="audio/*" style="display:none;">
+            </div>
+            <div class="ctrl-group">
+                <button class="ctrl-btn" onclick="document.getElementById('file-input').click()" style="background:linear-gradient(90deg,rgba(255,117,140,0.3),rgba(255,117,140,0.1)); border-color: #ff758c;">📷 上传你们的甜蜜照片</button>
+                <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
+            </div>
+            <div class="ctrl-row" style="margin-top:6px;">
+                <button id="btn-play-pause" class="ctrl-btn" style="width:40px; flex:none;">▶</button>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.6" style="flex:1;">
+            </div>
+        </div>
+        <div class="ctrl-section">
+            <h3>🎛️ 特效微调</h3>
+            <div class="ctrl-group"><label>自转速度 <span id="val-rot">0.002</span></label><input type="range" id="rot-speed" min="0" max="0.08" step="0.002" value="0.002"></div>
+            <div class="ctrl-group"><label>音乐灵敏度 <span id="val-beat">1.0</span></label><input type="range" id="beat-sense" min="0" max="3.0" step="0.1" value="1.0"></div>
+            <div class="ctrl-group"><label>梦幻辉光强度 <span id="val-bloom">1.0</span></label><input type="range" id="bloom-strength" min="0.0" max="2.0" step="0.1" value="1.0"></div>
+        </div>
+    </div>
+
+    <div id="qr-modal">
+        <div id="qr-modal-box">
+            <h3>✨ Miracle Heart</h3>
+            <canvas id="qr-canvas"></canvas>
+            <p>📱 扫一扫，在手机上打开这份浪漫</p>
+            <div id="qr-url"></div>
+            <button id="qr-close">关 闭</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+        import { FilesetResolver, HandLandmarker } from './lib/mediapipe/vision_bundle.0.10.0.js';
+        import QRCode from './lib/extra/qrcode.bundle.mjs';
+
+        const CONFIG = {
+            goldCount: 1200, silverCount: 800, gemCount: 700, emeraldCount: 550, dustCount: 2400,
+            camDistance: 105, bloomStrength: 1.0, bloomThreshold: 0.2, bloomRadius: 0.7,
+            bloomRes: 0.65, pixelCap: 1.3, baseSphereSegs: 7,
+        };
+        const STATE = { PARTICLE: 'particle', ZOOM: 'zoom', WALL: 'wall', RING: 'ring' };
+        let currentState = STATE.PARTICLE;
+        let blendFactor = 1;   // 初始即为心形聚集态
+        let currentBg = 'black';
+
+        let scene, camera, renderer, composer, mainGroup = new THREE.Group();
+        let goldMesh, silverMesh, gemMesh, emeraldMesh, dustSystem, starFieldMat;
+        let photoMeshes = [], photoUrls = [], photoParticleCache = [], zoomTargetIndex = -1;
+        let logicData = { gold: [], silver: [], gem: [], emerald: [], dust: [], star: null };
+        let bloomPass;
+        const dummy = new THREE.Object3D();
+        const _v = new THREE.Vector3();
+        let time = 0;
+
+        let handPos = { x: 0.5, y: 0.5 };
+        let rotationSpeed = 0.002;
+        let handTracked = false;     // 是否检测到右手
+        let ringCurrentAngle = 0;
+        let prevHandsState = { left: { active: false }, right: { active: false } };
+        let lastVideoTime = -1;
+        let lastRightGripChange = 0, lastGripDisplay = -1;
+        // 自适应帧率调节
+        let frameTimes = [], fpsAvg = 60;
+        let handFrameSkip = 0;
+        const HAND_FRAME_STEP = 2; // 每3帧跑一次手势识别（对交互响应无感知影响）
+
+        // 【核心改进】：左手锁，将时间戳硬判定重构为“边缘触发机制”
+        let lastLeftGesture = 'none';
+
+        let audioCtx, analyser, dataArray, audioEl;
+        let beat = 0;
+
+        // ★ 新增：环形画廊漂浮粒子背景
+        let ringParticlesSys = null;
+
+        // ★ 新增：流光粒子尾迹系统
+        let trailSystem = null;
+        const TRAIL_LENGTH = 5;
+
+        // ★ 新增：照片粒子化过渡（Three.js Points）
+        let transitionPoints = null;
+
+        // 资源追踪（用于页面卸载时清理）
+        let rAF_main = null, rAF_video = null;
+        let mediaStream = null;
+
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            const screen = document.getElementById('start-screen');
+            screen.style.opacity = '0';
+            setTimeout(() => { screen.style.display = 'none'; }, 1000);
+            document.getElementById('main-title').style.opacity = '1';
+            document.getElementById('video-container').classList.remove('hidden-cam');
+            updateStatus('💖 正在唤醒属于你们的星云空间...', '#ff758c');
+            initThree();
+            initAudio();
+            // 确保 AudioContext 在用户手势下激活（部分浏览器策略）
+            if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+            initAI();
+            setupUI();
+            animate();
+        });
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x06040a, 0.002);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, CONFIG.camDistance);
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.pixelCap));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
+            container.appendChild(renderer.domElement);
+
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            
+            const sl = new THREE.SpotLight(0xffd700, 150); sl.position.set(40, 90, 50); scene.add(sl);
+            const bl = new THREE.PointLight(0xff758c, 80, 250); bl.position.set(-50, -20, 50); scene.add(bl);
+            const gl = new THREE.PointLight(0xffb6c1, 60, 200); gl.position.set(50, -40, -30); scene.add(gl);
+
+            const renderPass = new RenderPass(scene, camera);
+            const bloomRes = CONFIG.bloomRes;
+            const bw = Math.round(window.innerWidth * bloomRes), bh = Math.round(window.innerHeight * bloomRes);
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(bw, bh), 1.5, 0.4, 0.85);
+            bloomPass.threshold = CONFIG.bloomThreshold; bloomPass.strength = CONFIG.bloomStrength; bloomPass.radius = CONFIG.bloomRadius;
+            composer = new EffectComposer(renderer); composer.addPass(renderPass); composer.addPass(bloomPass);
+
+            createMaterialsAndMeshes(); createDust(); createStarField(); createSnow();
+            createRingParticleSystem(); createTrailSystem();
+            scene.add(mainGroup);
+
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                    const bw = Math.round(window.innerWidth * CONFIG.bloomRes);
+                    const bh = Math.round(window.innerHeight * CONFIG.bloomRes);
+                    composer.setSize(bw, bh);
+                }, 150); // 防抖：缩放窗口时不做连续重算
+            });
+        }
+
+        function getHeartPoint(t, phi, rR) {
+            const s = Math.sin(t);
+            const s3 = s * s * s;
+            const heartX = 14 * s3;
+            const heartY = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+            return new THREE.Vector3(heartX * Math.cos(phi) * rR * 1.3, (heartY * rR * 1.3) + 4, heartX * Math.sin(phi) * rR * 0.5);
+        }
+
+        function randomSpherePoint(r) {
+            const u = Math.random(), v = Math.random();
+            const theta = 2 * Math.PI * u, phi = Math.acos(2 * v - 1);
+            return new THREE.Vector3(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+        }
+
+        function createMaterialsAndMeshes() {
+            const goldMat = new THREE.MeshPhysicalMaterial({ color: 0xffb6c1, metalness: 0.9, roughness: 0.15, clearcoat: 1.0, emissive: 0xff4466, emissiveIntensity: 0.2 });
+            const silverMat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.1, clearcoat: 1.0 });
+            const gemMat = new THREE.MeshPhysicalMaterial({ color: 0xff3366, metalness: 0.2, roughness: 0.0, transmission: 0.8, thickness: 1.5, emissive: 0xaa0022, emissiveIntensity: 0.4 });
+            const emeraldMat = new THREE.MeshPhysicalMaterial({ color: 0xfecfef, metalness: 0.5, roughness: 0.1, transmission: 0.5, thickness: 1.2 });
+            
+            const segs = CONFIG.baseSphereSegs;
+            goldMesh = createInstancedMesh(new THREE.SphereGeometry(0.55, segs, segs), goldMat, CONFIG.goldCount, logicData.gold);
+            silverMesh = createInstancedMesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), silverMat, CONFIG.silverCount, logicData.silver);
+            gemMesh = createInstancedMesh(new THREE.OctahedronGeometry(0.55, 0), gemMat, CONFIG.gemCount, logicData.gem);
+            emeraldMesh = createInstancedMesh(new THREE.ConeGeometry(0.35, 0.85, 5), emeraldMat, CONFIG.emeraldCount, logicData.emerald);
+
+            const star = new THREE.Mesh(
+                new THREE.OctahedronGeometry(2.8, 0),
+                new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness:0.9, roughness:0, emissive:0xffb6c1, emissiveIntensity:2.0 })
+            );
+            star.userData = { treePos: new THREE.Vector3(0, 21, 0), scatterPos: new THREE.Vector3(0, 60, 0) };
+            star.position.copy(star.userData.treePos); mainGroup.add(star); logicData.star = star;
+        }
+
+        function createInstancedMesh(geo, mat, count, dataArray) {
+            const mesh = new THREE.InstancedMesh(geo, mat, count);
+            mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mainGroup.add(mesh);
+            for (let i = 0; i < count; i++) {
+                const t = Math.random() * Math.PI * 2;
+                const phi = (Math.random() - 0.5) * Math.PI * 0.6;
+                const rR = 0.88 + 0.12 * Math.random();
+                const treePos = getHeartPoint(t, phi, rR);
+                const scatterPos = randomSpherePoint(40 + Math.random()*50);
+                dataArray.push({
+                    treePos, scatterPos, currentPos: treePos.clone(),
+                    scale: 0.6 + Math.random() * 0.7,
+                    rotSpeed: { x: Math.random()*0.02, y: Math.random()*0.02 },
+                    rotation: new THREE.Euler(Math.random()*Math.PI, Math.random()*Math.PI, 0)
+                });
+            }
+            return mesh;
+        }
+
+        function createDust() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(CONFIG.dustCount * 3);
+            for(let i=0; i<CONFIG.dustCount; i++) {
+                const t = Math.random() * Math.PI * 2;
+                const phi = (Math.random() - 0.5) * Math.PI * 0.6;
+                const rR = 0.85 + 0.15 * Math.random();
+                const hp = getHeartPoint(t, phi, rR);
+                pos[i*3] = hp.x; pos[i*3+1] = hp.y; pos[i*3+2] = hp.z;
+                logicData.dust.push({ treePos: hp.clone(), scatterPos: randomSpherePoint(80), currentPos: hp.clone(), velocity: Math.random() * 0.05 + 0.02 });
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ color: 0xffb6c1, size: 0.45, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false });
+            dustSystem = new THREE.Points(geo, mat); mainGroup.add(dustSystem);
+        }
+
+        function createStarField() {
+            const gradCanvas = document.createElement('canvas');
+            gradCanvas.width = 2; gradCanvas.height = 512;
+            const gctx = gradCanvas.getContext('2d');
+            const grad = gctx.createLinearGradient(0, 0, 0, 512);
+            grad.addColorStop(0.0, '#0a0513'); grad.addColorStop(0.50, '#150926'); grad.addColorStop(1.0, '#05020a');
+            gctx.fillStyle = grad; gctx.fillRect(0, 0, 2, 512);
+            scene.background = new THREE.CanvasTexture(gradCanvas);
+
+            const addStars = (count, spread, size, color, opacity) => {
+                const geo = new THREE.BufferGeometry();
+                const p = []; for(let i=0; i<count; i++) p.push((Math.random()-0.5)*spread, (Math.random()-0.5)*spread*0.6, (Math.random()-0.5)*spread-350);
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+                const mat = new THREE.PointsMaterial({ color, size, transparent: true, opacity, blending: THREE.AdditiveBlending, sizeAttenuation: true, depthWrite: false });
+                scene.add(new THREE.Points(geo, mat)); return mat;
+            };
+            const mat1 = addStars(1800, 1500, 0.6, 0xffc0cb, 0.6);
+            const mat3 = addStars(150, 1200, 2.5, 0xffffff, 0.85);
+            starFieldMat = { mat1, mat3 };
+        }
+
+        function createSnow() {
+            const geo=new THREE.BufferGeometry(); const pos=new Float32Array(1500*3);
+            for(let i=0;i<1500;i++) {
+                pos[i*3]=(Math.random()-0.5)*400; pos[i*3+1]=Math.random()*200-50; pos[i*3+2]=(Math.random()-0.5)*400-200;
+            }
+            geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+            const mat=new THREE.PointsMaterial({color:0xfff0f5,size:0.5,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false});
+            window.snowSystem=new THREE.Points(geo,mat); scene.add(window.snowSystem);
+        }
+
+        // ★ 环形画廊漂浮粒子背景
+        function createRingParticleSystem() {
+            const count = 500;
+            const pos = new Float32Array(count * 3);
+            const data = [];
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 150 + Math.random() * 180;
+                pos[i*3] = Math.cos(angle) * radius;
+                pos[i*3+1] = (Math.random() - 0.5) * 120;
+                pos[i*3+2] = Math.sin(angle) * radius * 0.45;
+                data.push({ phase: Math.random() * Math.PI * 2, speed: 0.003 + Math.random() * 0.006, floatOffset: Math.random() * 100 });
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({
+                color: 0xffb6c1, size: 0.5, transparent: true, opacity: 0.35,
+                blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+            });
+            const points = new THREE.Points(geo, mat);
+            points.visible = false;
+            scene.add(points);
+            ringParticlesSys = { points, data, basePos: new Float32Array(pos) };
+        }
+
+        // ★ 流光粒子尾迹系统（ShaderMaterial 支持逐点透明度和大小）
+        function createTrailSystem() {
+            const total = CONFIG.goldCount * TRAIL_LENGTH;
+            const pos = new Float32Array(total * 3);
+            const alphas = new Float32Array(total);
+            const sizes = new Float32Array(total);
+            for (let i = 0; i < CONFIG.goldCount; i++) {
+                for (let j = 0; j < TRAIL_LENGTH; j++) {
+                    const idx = i * TRAIL_LENGTH + j;
+                    const t = 1 - j / TRAIL_LENGTH;
+                    alphas[idx] = t * t * 0.6;
+                    sizes[idx] = 0.15 + t * 0.35;
+                }
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+            geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+            const mat = new THREE.ShaderMaterial({
+                uniforms: { uColor: { value: new THREE.Color(0xffb6c1) } },
+                vertexShader: `
+                    attribute float aAlpha;
+                    attribute float aSize;
+                    varying float vAlpha;
+                    void main() {
+                        vAlpha = aAlpha;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        gl_PointSize = aSize * (250.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 uColor;
+                    varying float vAlpha;
+                    void main() {
+                        float d = length(gl_PointCoord - vec2(0.5));
+                        if (d > 0.5) discard;
+                        float strength = 1.0 - smoothstep(0.0, 0.5, d) * 0.4;
+                        gl_FragColor = vec4(uColor, strength * vAlpha);
+                    }
+                `,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            const mesh = new THREE.Points(geo, mat);
+            mainGroup.add(mesh);
+            const trails = Array.from({ length: CONFIG.goldCount }, () =>
+                Array.from({ length: TRAIL_LENGTH }, () => new THREE.Vector3(0, 0, 0))
+            );
+            logicData.goldTrail = trails;
+            trailSystem = { mesh, trailLen: TRAIL_LENGTH, positions: pos };
+        }
+
+        // ★ 照片粒子化过渡 — 星尘飞聚成照片（Canvas 2D 粒子汇聚）
+        // ★ 预采样：上传时提取像素数据（供 Three.js 粒子过渡使用）
+        async function preSamplePhoto(url) {
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const i = new Image(); i.crossOrigin = 'anonymous';
+                    i.onload = () => resolve(i); i.onerror = reject; i.src = url;
+                });
+                const sw = 48, sh = 36;
+                const sampler = document.createElement('canvas');
+                sampler.width = sw; sampler.height = sh;
+                const sctx = sampler.getContext('2d');
+                sctx.drawImage(img, 0, 0, sw, sh);
+                const data = sctx.getImageData(0, 0, sw, sh).data;
+                const particles = [];
+                for (let y = 0; y < sh; y++) {
+                    for (let x = 0; x < sw; x++) {
+                        const idx = (y * sw + x) * 4;
+                        if (data[idx + 3] > 30) {
+                            particles.push({ nx: x / sw, ny: y / sh, r: data[idx] / 255, g: data[idx+1] / 255, b: data[idx+2] / 255 });
+                        }
+                    }
+                }
+                return particles;
+            } catch { return []; }
+        }
+
+        // ★ 照片粒子化过渡 — Three.js Points 版（GPU加速，与主渲染循环同步，杜绝卡顿）
+        function startPhotoParticleTransition(imageUrl) {
+            // 清理旧过渡
+            if (transitionPoints) {
+                if (transitionPoints.points.parent) scene.remove(transitionPoints.points);
+                transitionPoints.points.geometry.dispose();
+                transitionPoints.points.material.dispose();
+                if (transitionPoints.texture) transitionPoints.texture.dispose();
+                transitionPoints = null;
+            }
+
+            const photoEl = document.getElementById('single-photo-view');
+
+            // ★ 核心改进：照片立刻淡入显示，不再等待粒子汇聚
+            //   CSS transition 自动处理 0→1 的平滑淡入（约300ms完成）
+            //   粒子飞入作为并行的装饰特效，不影响照片展示速度
+            photoEl.style.transition = 'none';
+            photoEl.style.opacity = '0';
+            photoEl.style.transform = 'scale(0.92)';
+            photoEl.src = imageUrl;
+            void photoEl.offsetHeight; // 强制回流
+            photoEl.style.transition = 'opacity 0.35s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            photoEl.style.opacity = '1';
+            photoEl.style.transform = 'scale(1)';
+
+            // 取预采样缓存（粒子装饰特效）
+            const idx = photoUrls.indexOf(imageUrl);
+            const cached = (idx >= 0 && idx < photoParticleCache.length) ? photoParticleCache[idx] : null;
+            if (!cached || cached.length < 50) return; // 没有缓存则只做淡入
+
+            // ★ 粒子数再减少：600 → 视觉效果足够，GPU负担更轻
+            const count = Math.min(cached.length, 600);
+            const step = cached.length / count;
+            const pos = new Float32Array(count * 3);
+            const target = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                const p = cached[Math.floor(i * step)];
+                // 起始位置：心形周围随机散布
+                pos[i*3] = (Math.random() - 0.5) * 40;
+                pos[i*3+1] = (Math.random() - 0.5) * 30 + 4;
+                pos[i*3+2] = (Math.random() - 0.5) * 30;
+                // 目标位置：映射到与心形等大的平面，z=0
+                target[i*3] = (p.nx - 0.5) * 24;
+                target[i*3+1] = -(p.ny - 0.5) * 18 + 4;
+                target[i*3+2] = 0;
+                colors[i*3] = p.r; colors[i*3+1] = p.g; colors[i*3+2] = p.b;
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            // 圆形渐变 Sprite 纹理
+            const sc = document.createElement('canvas');
+            sc.width = 32; sc.height = 32;
+            const sctx2 = sc.getContext('2d');
+            const g = sctx2.createRadialGradient(16, 16, 0, 16, 16, 16);
+            g.addColorStop(0, 'rgba(255,255,255,1)');
+            g.addColorStop(0.5, 'rgba(255,255,255,0.8)');
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            sctx2.fillStyle = g; sctx2.fillRect(0, 0, 32, 32);
+            const tex = new THREE.CanvasTexture(sc);
+
+            const mat = new THREE.PointsMaterial({
+                size: 1.5, map: tex, blending: THREE.AdditiveBlending,
+                depthWrite: false, transparent: true, opacity: 0.8, // 初始即有可见度
+                vertexColors: true, sizeAttenuation: true
+            });
+
+            const points = new THREE.Points(geo, mat);
+            points.position.z = 6;
+            scene.add(points);
+
+            transitionPoints = { points, targets: target, progress: 0, imageUrl, texture: tex };
+        }
+
+        function addPhotoMesh(img) {
+            // ★ 降采样大图到最大 1024px，避免 GPU 纹理爆炸
+            let sw = img.width, sh = img.height;
+            const MAX_TEX = 1024;
+            let tex;
+            if (sw > MAX_TEX || sh > MAX_TEX) {
+                if (sw > sh) { sh = Math.round(sh * MAX_TEX / sw); sw = MAX_TEX; }
+                else { sw = Math.round(sw * MAX_TEX / sh); sh = MAX_TEX; }
+                const c = document.createElement('canvas');
+                c.width = sw; c.height = sh;
+                const ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0, sw, sh);
+                tex = new THREE.CanvasTexture(c);
+            } else {
+                tex = new THREE.Texture(img);
+            }
+            tex.needsUpdate = true; tex.colorSpace = THREE.SRGBColorSpace;
+
+            let w = 4.8, h = 4.8;
+            if(img.width > img.height) h = 4.8 * (img.height/img.width); else w = 4.8 * (img.width/img.height);
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide }));
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(w+0.15, h+0.15, 0.05), new THREE.MeshPhysicalMaterial({color:0xff758c, roughness:0.2, metalness:0.8, clearcoat:1.0}));
+            frame.position.z = -0.04; mesh.add(frame);
+
+            const t = Math.random() * Math.PI * 2, phi = (Math.random() - 0.5) * Math.PI * 0.55, rR = 0.9 + 0.1 * Math.random();
+            const h_pos = getHeartPoint(t, phi, rR);
+            mesh.userData = { treePos: h_pos, scatterPos: randomSpherePoint(50) };
+            mesh.position.copy(mesh.userData.treePos); photoMeshes.push(mesh); mainGroup.add(mesh);
+        }
+
+        // ================================================================
+        //  动画主循环
+        // ================================================================
+        function animate() {
+            rAF_main = requestAnimationFrame(animate); time += 0.01;
+
+            // 自适应帧率检测（每30帧采样一次）
+            frameTimes.push(performance.now());
+            if (frameTimes.length >= 30) {
+                const elapsed = frameTimes[frameTimes.length-1] - frameTimes[0];
+                fpsAvg = 30000 / elapsed;
+                frameTimes = frameTimes.slice(-15); // 滑动窗口
+                // 如果帧率持续偏低，使用简化渲染模式
+                if (fpsAvg < 24) { bloomPass.strength = Math.min(bloomPass.strength, CONFIG.bloomStrength * 0.6); }
+            }
+
+            if(analyser) {
+                analyser.getByteFrequencyData(dataArray); let sum=0;
+                for(let i=0; i<15; i++) sum += dataArray[i];
+                const sense = parseFloat(document.getElementById('beat-sense')?.value||1);
+                beat = (sum/15/255)*sense;
+            }
+
+            if(starFieldMat){
+                starFieldMat.mat1.opacity = 0.5 + Math.sin(time*1.5)*0.15;
+                starFieldMat.mat3.opacity = 0.7 + Math.sin(time*3.0)*0.25;
+            }
+
+            const easedBf = 1.0 - Math.pow(1.0 - blendFactor, 3.0);
+
+            let heartPulse = 1.0;
+            if (blendFactor > 0.8) {
+                const pulsePeriod = (time * 3.5) % (Math.PI * 2);
+                let pulseCurve = Math.sin(pulsePeriod);
+                if (pulseCurve > 0) {
+                    heartPulse = 1.0 + Math.pow(pulseCurve, 4.0) * 0.04 * blendFactor;
+                }
+            }
+            mainGroup.scale.setScalar(heartPulse * (1.0 + beat * 0.03));
+
+            updateMeshLogic(goldMesh, logicData.gold, easedBf);
+            updateMeshLogic(silverMesh, logicData.silver, easedBf);
+            updateMeshLogic(gemMesh, logicData.gem, easedBf);
+            updateMeshLogic(emeraldMesh, logicData.emerald, easedBf);
+            // ★ 更新流光粒子尾迹
+            if (trailSystem && blendFactor > 0.15) {
+                const trailPos = trailSystem.positions;
+                const goldTrail = logicData.goldTrail;
+                if (goldTrail && goldTrail.length > 0) {
+                    for (let i = 0; i < Math.min(logicData.gold.length, CONFIG.goldCount); i++) {
+                        const currentPos = logicData.gold[i].currentPos;
+                        const trail = goldTrail[i];
+                        for (let j = trail.length - 1; j > 0; j--) trail[j].copy(trail[j-1]);
+                        trail[0].copy(currentPos);
+                        for (let j = 0; j < trail.length; j++) {
+                            const idx = i * trail.length + j;
+                            trailPos[idx*3] = trail[j].x;
+                            trailPos[idx*3+1] = trail[j].y;
+                            trailPos[idx*3+2] = trail[j].z;
+                        }
+                    }
+                    trailSystem.mesh.geometry.attributes.position.needsUpdate = true;
+                    trailSystem.mesh.visible = true;
+                }
+            } else if (trailSystem) {
+                trailSystem.mesh.visible = false;
+            }
+            updateDustLogic(easedBf);
+            updatePhotoLogic(easedBf);
+
+            if (logicData.star) {
+                _v.copy(logicData.star.userData.scatterPos).lerp(logicData.star.userData.treePos, easedBf);
+                logicData.star.position.lerp(_v, 0.04);
+                logicData.star.rotation.y += 0.012 + beat * 0.01;
+            }
+
+            mainGroup.rotation.x = THREE.MathUtils.lerp(mainGroup.rotation.x, (handPos.y-0.5)*0.4, 0.05);
+            mainGroup.rotation.z = THREE.MathUtils.lerp(mainGroup.rotation.z, (handPos.x-0.5)*0.4, 0.05);
+            // blendFactor 低时（粒子散开）保持一定旋转，聚心后达到全速
+            const rotMultiplier = 0.35 + 0.65 * Math.min(1, blendFactor / 0.3);
+            mainGroup.rotation.y += rotationSpeed * rotMultiplier;
+            // 有右手跟踪时由手掌开合控制速度，无跟踪时回退到滑块值
+            if (!handTracked) {
+                rotationSpeed = THREE.MathUtils.lerp(rotationSpeed, parseFloat(document.getElementById('rot-speed').value || 0.002), 0.03);
+            }
+
+            if(window.snowSystem && fpsAvg > 20){ // 低于20fps时暂停雪花（不影响核心体验）
+                const p = window.snowSystem.geometry.attributes.position.array;
+                const snowFall = 0.12 - beat*0.05;
+                for(let i=1, n=p.length; i<n; i+=3){
+                    p[i] -= snowFall;
+                    if(p[i]<-50){ p[i]=150; p[i-1]=(Math.random()-0.5)*400; p[i+1]=(Math.random()-0.5)*400-200; }
+                }
+                window.snowSystem.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // ★ Three.js 照片粒子过渡更新（与主渲染循环同步，GPU 加速）
+            if (transitionPoints) {
+                const tp = transitionPoints;
+                tp.progress += 0.04;
+                const p = Math.min(tp.progress, 1);
+                const ease = 1 - Math.pow(1 - p, 3);
+
+                const pos = tp.points.geometry.attributes.position.array;
+                const targets = tp.targets;
+                const n = tp.points.geometry.attributes.position.count;
+
+                // ★ 收敛速度提升 0.07→0.15，粒子更快到达目标位
+                const speed = 0.15;
+                let maxDistSq = 0;
+                for (let i = 0; i < n; i++) {
+                    const i3 = i * 3;
+                    pos[i3] += (targets[i3] - pos[i3]) * speed;
+                    pos[i3+1] += (targets[i3+1] - pos[i3+1]) * speed;
+                    pos[i3+2] += (targets[i3+2] - pos[i3+2]) * speed;
+                    const dx = pos[i3] - targets[i3], dy = pos[i3+1] - targets[i3+1], dz = pos[i3+2] - targets[i3+2];
+                    maxDistSq = Math.max(maxDistSq, dx*dx + dy*dy + dz*dz);
+                }
+                tp.points.geometry.attributes.position.needsUpdate = true;
+                // ★ 粒子随进度渐隐（照片已经淡入显示，粒子应淡出）
+                tp.points.material.opacity = 0.8 * (1 - ease);
+                tp.points.material.size = 1.3 * (1 - ease * 0.5);
+
+                // ★ 宽松完成条件：粒子大致到位即可清理，不再等待完全收敛
+                if (maxDistSq < 2.0 || tp.progress > 1.6) {
+                    // 照片已通过 CSS 淡入显示，只需清理粒子
+                    scene.remove(tp.points);
+                    tp.points.geometry.dispose();
+                    tp.points.material.dispose();
+                    if (tp.texture) tp.texture.dispose();
+                    transitionPoints = null;
+                }
+            }
+
+            // ★ 环形画廊漂浮粒子背景更新
+            if (ringParticlesSys) {
+                if (currentState === STATE.RING) {
+                    const sys = ringParticlesSys;
+                    const pos = sys.points.geometry.attributes.position.array;
+                    const base = sys.basePos;
+                    for (let i = 0; i < sys.data.length; i++) {
+                        const d = sys.data[i];
+                        const baseX = base[i*3], baseZ = base[i*3+2];
+                        const baseRadius = Math.sqrt(baseX*baseX + baseZ*baseZ);
+                        const angle = d.phase + time * d.speed;
+                        const r = baseRadius + Math.sin(time * 0.7 + d.floatOffset) * 15;
+                        const floatY = Math.sin(time * 0.5 + d.floatOffset) * 12;
+                        pos[i*3] = Math.cos(angle) * r;
+                        pos[i*3+1] = base[i*3+1] + floatY;
+                        pos[i*3+2] = Math.sin(angle) * r * 0.5;
+                    }
+                    sys.points.geometry.attributes.position.needsUpdate = true;
+                    sys.points.visible = true;
+                } else {
+                    ringParticlesSys.points.visible = false;
+                }
+            }
+
+            // 【核心改进】：环形画廊稳定恒速轴
+            if (currentState === STATE.RING) {
+                const ringView = document.getElementById('ring-view');
+                if (ringView) {
+                    // 彻底脱离右手干扰，由纯净时间增量 + 音乐低音律动驱动，永不停歇、极其平稳
+                    ringCurrentAngle += 0.004 + beat * 0.003;
+                    const imgs = ringView.querySelectorAll('.ring-img');
+                    // 根据照片数量动态计算环形半径，避免拥挤或稀疏
+                    const numPhotos = imgs.length;
+                    const spacing = 210; // 每张照片占弧长(px)
+                    const computedRadius = (numPhotos * spacing) / (2 * Math.PI);
+                    const maxRadius = Math.min(window.innerWidth, window.innerHeight) * 0.38;
+                    const radius = Math.max(180, Math.min(computedRadius, maxRadius));
+                    imgs.forEach((img, i) => {
+                        const a = (Math.PI*2/numPhotos)*i + ringCurrentAngle;
+                        const x = Math.cos(a)*radius;
+                        const waveY = Math.sin(time * 2.0 + i) * 14; 
+                        const y = Math.sin(a)*radius*0.35 + waveY;
+                        const depth = Math.sin(a);
+                        // 基准缩放：近大远小
+                        const baseScale = THREE.MathUtils.lerp(0.75, 1.25, (depth+1)/2);
+                        // 高斯弹跳：转到正前方(depth≈1)时弹到约2x，离开展开平滑收回
+                        const pop = 0.8 * Math.exp(-Math.pow((1 - depth) * 3.5, 2));
+                        const scale = baseScale + pop;
+                        img.style.transform = `translate3d(${x}px,${y}px,0) scale(${scale})`;
+                        
+                        if(depth > 0.2 && Math.abs(Math.cos(a)) < 0.6) {
+                            img.classList.remove('is-background'); img.style.zIndex = 100;
+                        } else {
+                            img.classList.add('is-background'); img.style.zIndex = Math.floor((depth+1)*10);
+                        }
+                    });
+                }
+            }
+
+            composer.render();
+        }
+
+        function updateMeshLogic(mesh, dataArray, bf) {
+            const sinTime = time * 2;
+            const len = dataArray.length;
+            const yWobble = bf < 0.9 ? 0.01 * (1-bf) : 0;
+            const lerpRate = 0.06;
+            for (let i = 0; i < len; i++) {
+                const item = dataArray[i];
+                _v.copy(item.scatterPos).lerp(item.treePos, bf);
+                if (yWobble > 0.001) item.currentPos.y += Math.sin(sinTime + i * 0.1) * yWobble;
+                item.currentPos.lerp(_v, lerpRate);
+                item.rotation.x += item.rotSpeed.x; item.rotation.y += item.rotSpeed.y;
+                dummy.position.copy(item.currentPos); dummy.rotation.copy(item.rotation);
+                dummy.scale.setScalar(item.scale); dummy.updateMatrix();
+                mesh.setMatrixAt(i, dummy.matrix);
+            }
+            mesh.instanceMatrix.needsUpdate = true;
+        }
+
+        function updateDustLogic(bf) {
+            const positions = dustSystem.geometry.attributes.position.array;
+            const len = logicData.dust.length;
+            const dustTime = time;
+            const moveScale = bf * 0.25;
+            const spreadScale = bf;
+            for(let i=0; i<len; i++) {
+                const item = logicData.dust[i];
+                if (bf > 0.1) {
+                    item.currentPos.y += item.velocity * moveScale;
+                    item.currentPos.x += Math.sin(dustTime + i * 0.1) * 0.03 * spreadScale;
+                    if (item.currentPos.y > 22) {
+                        const resetPos = getHeartPoint(Math.PI, (Math.random()-0.5)*Math.PI, 0.2+0.8*Math.random());
+                        item.currentPos.copy(resetPos); item.currentPos.y = -15;
+                    }
+                }
+                _v.copy(item.scatterPos).lerp(item.treePos, bf);
+                item.currentPos.lerp(_v, 0.04);
+                const i3 = i*3;
+                positions[i3] = item.currentPos.x; positions[i3+1] = item.currentPos.y; positions[i3+2] = item.currentPos.z;
+            }
+            dustSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function updatePhotoLogic(bf) {
+            const len = photoMeshes.length;
+            if (!len) return;
+            const photoTime = time;
+            const yOffsetScale = (1-bf) * 0.02;
+            const targetBase = 1.8, targetRange = 0.7;
+            for (let i = 0; i < len; i++) {
+                const mesh = photoMeshes[i];
+                _v.copy(mesh.userData.scatterPos).lerp(mesh.userData.treePos, bf);
+                if (yOffsetScale > 0.001) mesh.position.y += Math.sin(photoTime + i) * yOffsetScale;
+                mesh.lookAt(camera.position);
+                mesh.position.lerp(_v, 0.08);
+                const targetScale = targetBase + targetRange * (1-bf);
+                mesh.scale.setScalar(THREE.MathUtils.lerp(mesh.scale.x, targetScale, 0.08));
+            }
+        }
+
+        async function initAI() {
+            try {
+                // 直接构造 fileset 对象，绕过 FilesetResolver.forVisionTasks（其只接受单一 baseUrl 字符串）
+                const isSimd = await FilesetResolver.isSimdSupported().catch(() => true);
+                const vision = {
+                    wasmLoaderPath: isSimd
+                        ? "./lib/mediapipe/vision/vision_wasm_internal.js"
+                        : "./lib/mediapipe/vision/vision_wasm_nosimd_internal.js",
+                    wasmBinaryPath: isSimd
+                        ? "./lib/mediapipe/vision/vision_wasm_internal.wasm"
+                        : "./lib/mediapipe/vision/vision_wasm_nosimd_internal.wasm"
+                };
+                const landmarker = await HandLandmarker.createFromOptions(vision, {
+                    baseOptions: { modelAssetPath: "./lib/mediapipe/vision/hand_landmarker.task", delegate: "GPU" },
+                    runningMode: "VIDEO", numHands: 2
+                });
+                const video = document.getElementById("input-video");
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = mediaStream;
+                video.addEventListener("loadeddata", () => {
+                    updateStatus("✨ 浪漫交互系统已就绪 · 请牵起她的手一同见证", "#ff758c");
+                    processVideo(landmarker, video);
+                });
+            } catch (error) {
+                console.error("AI engine error:", error);
+                updateStatus("⚠️ 未开启摄像头或检测环境限制", "#ff4466");
+            }
+        }
+
+        function processVideo(landmarker, video) {
+            handFrameSkip++; // 跳帧：手势识别降频至 ~1/3，大幅释放 GPU
+            if (video.currentTime !== lastVideoTime && handFrameSkip % HAND_FRAME_STEP === 0) {
+                lastVideoTime = video.currentTime;
+                const result = landmarker.detectForVideo(video, performance.now());
+                handleResult(result, video);
+            } else if (video.currentTime !== lastVideoTime && handFrameSkip % HAND_FRAME_STEP === 1) {
+                // 隔一帧也轻度更新 handPos 的位置平滑，避免旋转抖动
+                const result = landmarker.detectForVideo(video, performance.now());
+                if (result.landmarks && result.landmarks.length > 0) {
+                    const hands = result.landmarks.map((m, idx) => {
+                        const label = (result.handedness?.[idx]?.[0]?.label) || 'Unknown';
+                        return { marks: m, label, x: m[9].x };
+                    });
+                    let rightHand = null;
+                    if (hands.length === 2) { hands.sort((a,b)=>a.x-b.x); rightHand = hands[0]; }
+                    else if (hands.length === 1 && hands[0].x < 0.45) rightHand = hands[0];
+                    if (rightHand) {
+                        handPos.x = handPos.x*0.85 + (1-rightHand.marks[9].x)*0.15;
+                        handPos.y = handPos.y*0.85 + rightHand.marks[9].y*0.15;
+                        handTracked = true;
+                    }
+                }
+            }
+            rAF_video = requestAnimationFrame(() => processVideo(landmarker, video));
+        }
+
+        function handleResult(result, video) {
+            const canvas = document.getElementById('skeleton-canvas'), ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (result.landmarks && result.landmarks.length > 0) {
+                document.getElementById('video-container').style.borderColor = "rgba(255, 117, 140, 0.8)";
+
+                const detected = result.landmarks.map((marks, idx) => {
+                    let label = "Unknown";
+                    if (result.handedness && result.handedness[idx] && result.handedness[idx].length > 0)
+                        label = result.handedness[idx][0].label || result.handedness[idx][0].categoryName || "Unknown";
+                    drawHand(ctx, marks, canvas.width, canvas.height);
+
+                    const H = Math.sqrt((marks[5].x-marks[0].x)**2 + (marks[5].y-marks[0].y)**2);
+                    let totalDist = 0;
+                    [8,12,16,20].forEach(tip => totalDist += Math.sqrt((marks[tip].x-marks[0].x)**2 + (marks[tip].y-marks[0].y)**2));
+                    const grip = Math.max(0, Math.min(1, 1 - (totalDist/4 - H*0.6)/(H*1.8)));
+                    const pinchDist = Math.sqrt((marks[4].x-marks[8].x)**2 + (marks[4].y-marks[8].y)**2);
+                    
+                    // 【新定制】：放宽捏合判定线（从0.3提高到0.38），大幅提升手放远时的捏合感应灵敏度
+                    return { marks, label, grip, isPinch: pinchDist < H*0.38, x: marks[9].x };
+                });
+
+                let rightHand = null, leftHand = null;
+                if (detected.length === 2) { detected.sort((a,b)=>a.x-b.x); rightHand=detected[0]; leftHand=detected[1]; }
+                else if (detected.length === 1) {
+                    const h=detected[0];
+                    if(h.x<0.45) rightHand=h; else if(h.x>0.55) leftHand=h;
+                    else { if(prevHandsState.right.active) rightHand=h; else leftHand=h; }
+                }
+                prevHandsState.right.active=!!rightHand; prevHandsState.left.active=!!leftHand;
+                handTracked = !!rightHand;
+                if(rightHand) applyRightHand(rightHand);
+                if(leftHand) applyLeftHand(leftHand);
+            } else {
+                prevHandsState.right.active=false; prevHandsState.left.active=false; handTracked = false;
+                document.getElementById('video-container').style.borderColor = "rgba(255, 182, 193, 0.4)";
+            }
+        }
+
+        function applyRightHand(data) {
+            const now = performance.now(), { marks, grip } = data;
+
+            let targetBlend = 0;
+            if (grip < 0.3) targetBlend = 0;
+            else if (grip > 0.55) targetBlend = 1;
+            else targetBlend = (grip - 0.3) / 0.25;
+            blendFactor = THREE.MathUtils.lerp(blendFactor, targetBlend, 0.2);
+
+            handPos.x = handPos.x*0.85 + (1-marks[9].x)*0.15;
+            handPos.y = handPos.y*0.85 + marks[9].y*0.15;
+
+            handTracked = true;
+            // 【核心】手掌越开(grip越小) → 旋转越快；握拳(grip大) → 旋转越慢
+            const openness = 1 - grip;   // 0=握拳, 1=全开
+            const targetSpeed = 0.0005 + openness * 0.03;
+            rotationSpeed = THREE.MathUtils.lerp(rotationSpeed, targetSpeed, 0.08);
+
+            const pct = Math.round(targetBlend * 100);
+            if (now - lastRightGripChange > 400 && pct !== lastGripDisplay) {
+                lastGripDisplay = pct; lastRightGripChange = now;
+                let msg, color;
+                if (pct < 15)      { msg=`💥 星云散落 · 漫天星芒只为你倾泻 [${pct}%]`; color="#ffb6c1"; }
+                else if (pct < 50) { msg=`💫 宇宙微尘正在聆听你们的心跳... [${pct}%]`; color="#ffd700"; }
+                else if (pct < 85) { msg=`❤️ 爱意正在慢慢凝聚成形... [${pct}%]`; color="#ff758c"; }
+                else               { msg=`✨ 完美心形 · 这是送给你的宇宙奇迹 🪐`; color="#ff3355"; }
+                updateStatus(msg, color);
+            }
+        }
+
+        // 【核心优化逻辑】：左手交互全面重构为状态机
+        function applyLeftHand(data) {
+            const { marks, grip, isPinch } = data;
+
+            const d = (tip, mcp) => {
+                const tipD = Math.sqrt((marks[tip].x-marks[0].x)**2 + (marks[tip].y-marks[0].y)**2);
+                const mcpD = Math.sqrt((marks[mcp].x-marks[0].x)**2 + (marks[mcp].y-marks[0].y)**2);
+                return tipD / mcpD;
+            };
+            const isScissors = d(8,5)>1.3 && d(12,9)>1.3 && d(16,13)<0.95 && d(20,17)<0.95;
+
+            // 实时研判当前左手的姿态类型
+            // ★ 优先级：握拳 > 捏合 > 剪刀；握拳时拇指也会靠近食指，必须优先判定
+            let currentGesture = 'none';
+            if (grip > 0.7) currentGesture = 'fist';
+            else if (isPinch) currentGesture = 'pinch';
+            else if (isScissors) currentGesture = 'scissors';
+
+            // 【关键】：仅在手势发生“状态转变的瞬间”（边缘沿）触发一次动作！彻底解决重复清屏和卡顿问题
+            if (currentGesture !== lastLeftGesture) {
+                if (currentGesture === 'pinch') {
+                    // 零延迟瞬间秒切照片，只要松开再捏就能无限连切
+                    triggerPhotoFlow();
+                } 
+                else if (currentGesture === 'scissors') {
+                    // 仅在非画廊状态下构建DOM，一旦进入画廊状态就不再重建，确保其能“无限稳定旋转”
+                    if (photoUrls.length > 0 && currentState !== STATE.RING) {
+                        currentState = STATE.RING; 
+                        renderRingView(); 
+                        updateHTMLOverlay();
+                        updateStatus("✌️ 唤醒立体画廊 · 记录属于我们的点点滴滴 🖼️", "#dd88ff");
+                    }
+                } 
+                else if (currentGesture === 'fist') {
+                    if (currentState !== STATE.PARTICLE) {
+                        currentState = STATE.PARTICLE; 
+                        updateHTMLOverlay();
+                        updateStatus("✊ 隐入繁星 · 爱意永不落幕", "#ff758c");
+                    }
+                }
+                lastLeftGesture = currentGesture; // 更新锁状态
+            }
+        }
+
+        function drawHand(ctx, marks, w, h) {
+            ctx.lineWidth=3; ctx.strokeStyle='rgba(255,117,140,0.7)'; ctx.fillStyle='#ffffff';
+            const c=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+            ctx.beginPath(); for(let p of c){ctx.moveTo(marks[p[0]].x*w,marks[p[0]].y*h);ctx.lineTo(marks[p[1]].x*w,marks[p[1]].y*h);} ctx.stroke();
+            for(let p of[4,8,12,16,20,0]){ctx.beginPath();ctx.arc(marks[p].x*w,marks[p].y*h,4,0,Math.PI*2);ctx.fill();}
+        }
+
+        function triggerPhotoFlow() {
+            if (photoUrls.length === 0) { updateStatus("💓 记得先上传属于你们的照片哦", "#ff8800"); return; }
+            if (currentState === STATE.PARTICLE) { currentState = STATE.ZOOM; zoomTargetIndex = 0; preloadNextPhoto(0); }
+            else if (currentState === STATE.ZOOM) {
+                zoomTargetIndex++;
+                if (zoomTargetIndex >= photoUrls.length) { currentState = STATE.WALL; renderMeteorWall(); }
+                else { preloadNextPhoto(zoomTargetIndex); }
+            } else if (currentState === STATE.WALL) { currentState = STATE.RING; renderRingView(); }
+            else if (currentState === STATE.RING) { currentState = STATE.ZOOM; zoomTargetIndex = 0; }
+            updateHTMLOverlay();
+        }
+
+        // ★ 预加载下一张照片，切换时零延迟
+        function preloadNextPhoto(currentIdx) {
+            const nextIdx = currentIdx + 1;
+            if (nextIdx < photoUrls.length) {
+                const pre = new Image();
+                pre.src = photoUrls[nextIdx];
+            }
+        }
+
+        // 【新定制】：重构单张照片淡入特效 + 粒子汇聚过渡
+        function updateHTMLOverlay() {
+            // 离开 ZOOM 模式时清理过渡粒子
+            if (currentState !== STATE.ZOOM && transitionPoints) {
+                scene.remove(transitionPoints.points);
+                transitionPoints.points.geometry.dispose();
+                transitionPoints.points.material.dispose();
+                if (transitionPoints.texture) transitionPoints.texture.dispose();
+                transitionPoints = null;
+            }
+            const wrapper = document.getElementById('canvas-wrapper');
+            wrapper.classList.remove('show-zoom','show-wall','show-ring');
+            if (currentState === STATE.ZOOM) {
+                // ★ 改用粒子汇聚过渡 → 星尘飞聚成照片
+                const imgTarget = photoUrls[zoomTargetIndex];
+                startPhotoParticleTransition(imgTarget);
+                wrapper.classList.add('show-zoom');
+            } else if (currentState === STATE.WALL) {
+                wrapper.classList.add('show-wall');
+            } else if (currentState === STATE.RING) {
+                wrapper.classList.add('show-ring');
+            }
+        }
+
+        function renderMeteorWall() {
+            const wall=document.getElementById('wall-view'); wall.innerHTML='';
+            photoUrls.forEach((url,i)=>{const img=document.createElement('img');img.src=url;img.className='meteor-img';img.style.animation=`meteorFly 1.0s cubic-bezier(0.16,1,0.3,1) ${i*0.12}s forwards`;wall.appendChild(img);});
+        }
+
+        function renderRingView() {
+            const ring=document.getElementById('ring-view'); ring.innerHTML=''; if(photoUrls.length===0)return;
+            photoUrls.forEach((url,i)=>{const img=document.createElement('img');img.src=url;img.className='ring-img';ring.appendChild(img);});
+        }
+
+        function updateStatus(msg, color) {
+            document.getElementById('status-msg').innerText = msg;
+            const dot = document.getElementById('status-dot');
+            dot.style.background = color; dot.style.animation = 'none'; dot.offsetHeight; dot.style.animation = 'pulse 2s infinite';
+        }
+
+        function initAudio() {
+            try {
+                audioEl = new Audio(); audioEl.crossOrigin = "anonymous"; audioEl.loop = true;
+                const Actx = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new Actx();
+                analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                const source = audioCtx.createMediaElementSource(audioEl);
+                source.connect(analyser); analyser.connect(audioCtx.destination);
+                
+                updateStatus("🎵 浪漫背景音乐载入就绪", "#aaa");
+            } catch(e) { console.log("Audio init error:", e); }
+        }
+
+        function setBackground(type) {
+            currentBg = type; document.body.className = 'bg-' + type;
+            if (type === 'black') {
+                const c=document.createElement('canvas'); c.width=2; c.height=512; const gctx=c.getContext('2d');
+                const g=gctx.createLinearGradient(0,0,0,512); g.addColorStop(0,'#0a0513');g.addColorStop(0.5,'#150926');g.addColorStop(1,'#05020a');
+                gctx.fillStyle=g; gctx.fillRect(0,0,2,512); scene.background = new THREE.CanvasTexture(c);
+                scene.fog.color.setHex(0x06040a);
+            } else {
+                const colors = { deep: 0x050518, warm: 0x1a0808, aurora: 0x061218 };
+                scene.background = new THREE.Color(colors[type]); scene.fog.color.setHex(colors[type]);
+            }
+        }
+
+        function setupUI() {
+            const titleEl = document.getElementById('main-title');
+            document.getElementById('toggle-btn').addEventListener('click', () => document.getElementById('ui-panel').classList.toggle('hidden'));
+            
+            document.getElementById('btn-fullscreen').addEventListener('click', () => {
+                if(!document.fullscreenElement){document.documentElement.requestFullscreen(); document.getElementById('btn-fullscreen').innerText="❌ 退出全屏";}
+                else{document.exitFullscreen(); document.getElementById('btn-fullscreen').innerText="⛶ 全屏模式";}
+            });
+
+            document.getElementById('btn-toggle-cam').addEventListener('click', () => document.getElementById('video-container').classList.toggle('hidden-cam'));
+            document.getElementById('custom-text').addEventListener('input', (e) => titleEl.innerText = e.target.value);
+            document.getElementById('font-size').addEventListener('input', (e) => {
+                titleEl.style.fontSize = e.target.value+'rem'; document.getElementById('val-font-size').innerText = e.target.value;
+            });
+            document.getElementById('font-family').addEventListener('change', (e) => titleEl.style.fontFamily = e.target.value);
+            document.getElementById('bg-select').addEventListener('change', (e) => setBackground(e.target.value));
+
+            document.getElementById('rot-speed').addEventListener('input', (e) => {
+                rotationSpeed = parseFloat(e.target.value); document.getElementById('val-rot').innerText = rotationSpeed.toFixed(3);
+            });
+            document.getElementById('beat-sense').addEventListener('input', (e) => {
+                document.getElementById('val-beat').innerText = parseFloat(e.target.value).toFixed(1);
+            });
+            document.getElementById('bloom-strength').addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value); document.getElementById('val-bloom').innerText = v.toFixed(1);
+                if(bloomPass) bloomPass.strength = v;
+            });
+
+            document.getElementById('music-input').addEventListener('change', (e) => {
+                if(e.target.files[0] && audioEl) {
+                    audioEl.src = URL.createObjectURL(e.target.files[0]);
+                    audioEl.play().then(() => {
+                        document.getElementById('btn-play-pause').innerText="⏸";
+                        if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+                    }).catch(err => console.log(err));
+                }
+            });
+
+            document.getElementById('btn-play-pause').addEventListener('click', () => {
+                if(!audioEl) return;
+                if(audioEl.paused){audioEl.play(); document.getElementById('btn-play-pause').innerText="⏸";}
+                else{audioEl.pause(); document.getElementById('btn-play-pause').innerText="▶";}
+            });
+
+            document.getElementById('volume-slider').addEventListener('input', (e) => { if(audioEl) audioEl.volume = e.target.value; });
+
+            // ★ 分享二维码
+            document.getElementById('btn-share-qr').addEventListener('click', async () => {
+                const modal = document.getElementById('qr-modal');
+                const canvas = document.getElementById('qr-canvas');
+                const urlEl = document.getElementById('qr-url');
+                try {
+                    const url = window.location.href;
+                    await QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#ffb6c1', light: '#181225' } });
+                    urlEl.textContent = url;
+                    modal.classList.add('show');
+                } catch(e) { console.error('QR Code error:', e); }
+            });
+            document.getElementById('qr-close').addEventListener('click', () => {
+                document.getElementById('qr-modal').classList.remove('show');
+            });
+
+            document.getElementById('file-input').addEventListener('change', async (e) => {
+                if(!e.target.files.length) return;
+                const files = Array.from(e.target.files);
+                updateStatus(`📸 正在处理 ${files.length} 张照片...`, "#ffaa00");
+                // ★ 顺序处理，每张照片只加载一次，避免内存尖峰压倒手势识别
+                for (const file of files) {
+                    const blobUrl = URL.createObjectURL(file);
+                    photoUrls.push(blobUrl);
+                    // 加载一次，同时用于采样 + 3D纹理
+                    const img = await new Promise(resolve => { const i = new Image(); i.onload = () => resolve(i); i.src = blobUrl; });
+                    // 内联采样（同 preSamplePhoto 逻辑，免去重复加载）
+                    const sw = 48, sh = 36;
+                    const sampler = document.createElement('canvas');
+                    sampler.width = sw; sampler.height = sh;
+                    const sctx = sampler.getContext('2d');
+                    sctx.drawImage(img, 0, 0, sw, sh);
+                    const data = sctx.getImageData(0, 0, sw, sh).data;
+                    const particles = [];
+                    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+                        const idx = (y * sw + x) * 4;
+                        if (data[idx + 3] > 30) particles.push({ nx: x / sw, ny: y / sh, r: data[idx] / 255, g: data[idx+1] / 255, b: data[idx+2] / 255 });
+                    }
+                    photoParticleCache.push(particles);
+                    // 添加到 3D 场景（内部会降采样纹理）
+                    addPhotoMesh(img);
+                    // 主动让出主线程，给手势识别呼吸空间
+                    await new Promise(r => setTimeout(r, 0));
+                }
+                setTimeout(() => updateStatus(`📸 已注入 ${photoUrls.length} 枚甜蜜记忆`, "#ff758c"), 500);
+            });
+        }
+
+        // === 页面卸载时资源清理 ===
+        function cleanupResources() {
+            // 停止摄像头
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream = null;
+            }
+            // 取消动画循环
+            if (rAF_main) { cancelAnimationFrame(rAF_main); rAF_main = null; }
+            if (rAF_video) { cancelAnimationFrame(rAF_video); rAF_video = null; }
+            // 暂停并释放音频
+            if (audioEl) { audioEl.pause(); audioEl.src = ''; }
+            if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+            // 清除流光尾迹
+            if (trailSystem && trailSystem.mesh) { mainGroup.remove(trailSystem.mesh); trailSystem.mesh.geometry.dispose(); trailSystem.mesh.material.dispose(); }
+            // 清除环形画廊粒子
+            if (ringParticlesSys && ringParticlesSys.points) { scene.remove(ringParticlesSys.points); ringParticlesSys.points.geometry.dispose(); ringParticlesSys.points.material.dispose(); }
+            // 取消照片过渡粒子
+            if (transitionPoints) {
+                scene.remove(transitionPoints.points);
+                transitionPoints.points.geometry.dispose();
+                transitionPoints.points.material.dispose();
+                if (transitionPoints.texture) transitionPoints.texture.dispose();
+                transitionPoints = null;
+            }
+            // 释放 Three.js GPU 资源
+            if (renderer) { renderer.dispose(); }
+            // 释放图片 Blob URL
+            photoUrls.forEach(url => { if (url.startsWith('blob:')) URL.revokeObjectURL(url); });
+            photoParticleCache = [];
+            photoUrls = [];
+        }
+        window.addEventListener('beforeunload', cleanupResources);
+    </script>
+</body>
+</html>

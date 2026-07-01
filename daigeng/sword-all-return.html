@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>青竹蜂云剑 - 万剑归宗终极玄幻版</title>
+
+    <script src="../lib/vue.min.js"></script>
+    <script src="../lib/three.r128.min.js"></script>
+    <script type="module">
+        import { FilesetResolver, HandLandmarker } from "../lib/mediapipe/vision_bundle.0.10.3.mjs";
+        window.FilesetResolver = FilesetResolver;
+        window.HandLandmarker = HandLandmarker;
+        window.AI_MODULE_LOADED = true;
+    </script>
+
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; color: white; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background: radial-gradient(circle at 50% 50%, #090a15 0%, #020205 100%);
+        }
+        #app { width: 100vw; height: 100vh; position: relative; }
+        #canvas-container { position: absolute; inset: 0; z-index: 1; }
+        
+        .ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        
+        .status-tag { 
+            display: inline-block; padding: 12px 24px; 
+            background: rgba(4, 6, 15, 0.75); 
+            border: 1px solid #00ff88; 
+            border-radius: 6px; 
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .gesture-guide {
+            margin-top: 25px;
+            background: rgba(5, 8, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px 25px;
+            backdrop-filter: blur(12px);
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .guide-title {
+            color: #707e94;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            letter-spacing: 4px;
+            text-align: center;
+        }
+        .guide-item {
+            font-size: 15px;
+            color: #556275;
+            margin: 14px 0;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.02);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+        }
+        .guide-icon { font-size: 22px; margin-right: 12px; }
+
+        #webcam { 
+            position: absolute; bottom: 20px; right: 20px; 
+            width: 180px; height: 135px; 
+            border-radius: 10px; transform: scaleX(-1); 
+            opacity: 0.4; z-index: 5; border: 1px solid rgba(255,255,255,0.1); 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            transition: opacity 0.3s;
+        }
+        #webcam:hover { opacity: 0.8; }
+        
+        .loading-overlay {
+            position: absolute; inset: 0; background: #020308; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 3px solid rgba(0,255,136,0.1);
+            border-radius: 50%;
+            border-top-color: #00ff88;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div v-if="!isReady" class="loading-overlay">
+        <div class="spinner" :style="{ borderTopColor: activeColor }"></div>
+        <h2 :style="{ color: activeColor, letterSpacing: '2px' }">{{ statusText }}</h2>
+        <p style="color: #64748b; margin-top: 8px; font-size: 14px;">{{ hintText }}</p>
+    </div>
+
+    <div id="canvas-container" ref="container"></div>
+    <video id="webcam" autoplay playsinline muted></video>
+
+    <!-- UI 面板 -->
+    <div class="ui-overlay" v-show="isReady">
+        <div class="status-tag" :style="{ color: activeColor, borderColor: activeColor, boxShadow: '0 0 25px ' + activeColor + '44' }">
+            {{ statusText }}
+        </div>
+        
+        <div class="gesture-guide">
+            <div class="guide-title">【 御剑传世神诀 】</div>
+            <div class="guide-item" :style="gestureMode === 'DRAGON' ? activeStyle : {}">
+                <span class="guide-icon">☝️</span> 食指探天：游龙天煞旋
+            </div>
+            <div class="guide-item" :style="gestureMode === 'LOTUS' ? activeStyle : {}">
+                <span class="guide-icon">🖐️</span> 五指齐张：太乙青莲阵
+            </div>
+            <div class="guide-item" :style="gestureMode === 'SHIELD' ? activeStyle : {}">
+                <span class="guide-icon">✊</span> 紧握成拳：不动明王盾
+            </div>
+            <div class="guide-item" :style="gestureMode === 'DAGENG' ? activeStyle : {}">
+                <span class="guide-icon">🤘</span> 剑诀横空：万剑归宗巨剑
+            </div>
+            <div class="guide-title" style="margin-top:18px; color:#ff3366; font-weight: bold; opacity:0.9;">
+                ⚡ 快速挥动释放澎湃剑气 ⚡
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CONFIG = {
+        swordCount: 400, // 恢复高饱和度的400把飞剑
+        locateFile: (f) => ({
+            "vision_wasm_internal.js": "../lib/mediapipe/vision/vision_wasm_internal.js",
+            "vision_wasm_nosimd_internal.js": "../lib/mediapipe/vision/vision_wasm_nosimd_internal.js",
+            "vision_wasm_internal.wasm": "../lib/mediapipe/vision/vision_wasm_internal.wasm",
+            "vision_wasm_nosimd_internal.wasm": "../lib/mediapipe/vision/vision_wasm_nosimd_internal.wasm"
+        })[f] || f,
+        modelPath: "../lib/mediapipe/vision/hand_landmarker.task",
+        maxSpeed: 240, 
+        maxForce: 9.5, // 提高响应物理力，让剑阵聚合更加干脆利落
+        colors: {
+            'SHIELD': '#00e5ff',  
+            'LOTUS': '#ff9900',   
+            'DAGENG': '#ff0055',  
+            'DRAGON': '#00ff88'   
+        }
+    };
+
+    // 全局数学对象池，避免每一帧GC产生卡顿
+    const _targetVec = new THREE.Vector3();
+    const _forceVec = new THREE.Vector3();
+    const _lookAtVec = new THREE.Vector3();
+    const _dummy = new THREE.Object3D();
+    const _colorObj = new THREE.Color();
+
+    new Vue({
+        el: '#app',
+        data: {
+            isReady: false,
+            statusText: '⏳ 正在召唤万剑底座...',
+            hintText: '首次打开需要初始化特征网络，请稍候...',
+            activeColor: '#00ff88',
+            gestureMode: 'DRAGON'
+        },
+        computed: {
+            activeStyle() {
+                return {
+                    color: this.activeColor,
+                    background: 'rgba(255,255,255,0.06)',
+                    textShadow: `0 0 12px ${this.activeColor}`,
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    fontWeight: 'bold',
+                    transform: 'translateX(8px) scale(1.03)'
+                };
+            }
+        },
+        mounted() {
+            this.targetPos = new THREE.Vector3(0, 0, 0);
+            this.smoothPos = new THREE.Vector3(0, 0, 0); // 滤波平滑后的位置
+            this.lastTargetPos = new THREE.Vector3(0,0,0);
+            this.velocityVec = new THREE.Vector3(0,0,0); // 手势移动速度向量
+            this.smoothVelocity = 0; // 平滑后的手速速率
+
+            this.historyLength = 160;
+            this.history = Array(this.historyLength).fill().map(() => new THREE.Vector3());
+            
+            this.pendingMode = 'DRAGON';
+            this.lastModeTime = 0;
+            this.swords = [];
+            this.timeOffset = 0;
+
+            // 渐变色彩追踪
+            this.currentColor = new THREE.Color(CONFIG.colors['DRAGON']);
+            this.targetColor = new THREE.Color(CONFIG.colors['DRAGON']);
+
+            const checkLoad = setInterval(() => {
+                if (window.AI_MODULE_LOADED && window.THREE) {
+                    clearInterval(checkLoad);
+                    this.statusText = '🎥 正在开启通灵法眼...';
+                    this.hintText = '请在浏览器弹窗中允许使用摄像头权限';
+                    this.initThree();
+                    this.initAI();
+                }
+            }, 300);
+            
+            window.addEventListener('resize', this.onResize);
+        },
+        methods: {
+            async initAI() {
+                try {
+                    const video = document.getElementById('webcam');
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 640, height: 480, frameRate: { ideal: 30 } } 
+                    });
+                    video.srcObject = stream;
+
+                    this.statusText = '🧠 正在结成手印结界...';
+                    this.hintText = '深度特征网络加载中 (约3MB)';
+
+                    // 直接构造 fileset 对象，绕过 FilesetResolver.forVisionTasks（其只接受单一 baseUrl 字符串）
+                    const isSimd = await window.FilesetResolver.isSimdSupported().catch(() => true);
+                    const vision = {
+                        wasmLoaderPath: isSimd
+                            ? "../lib/mediapipe/vision/vision_wasm_internal.js"
+                            : "../lib/mediapipe/vision/vision_wasm_nosimd_internal.js",
+                        wasmBinaryPath: isSimd
+                            ? "../lib/mediapipe/vision/vision_wasm_internal.wasm"
+                            : "../lib/mediapipe/vision/vision_wasm_nosimd_internal.wasm"
+                    };
+                    this.handLandmarker = await window.HandLandmarker.createFromOptions(vision, {
+                        baseOptions: { modelAssetPath: CONFIG.modelPath, delegate: "GPU" },
+                        runningMode: "VIDEO",
+                        numHands: 1
+                    });
+                    
+                    this.isReady = true;
+                    this.statusText = '🐉 游龙天煞旋';
+                    this.hintText = '剑阵已听从您的召唤';
+                    
+                    this.startAILoop();
+                    this.startRenderLoop();
+                } catch (err) {
+                    console.error(err);
+                    this.activeColor = '#ff0055';
+                    this.statusText = '❌ 阵法法眼未成功开启';
+                    this.hintText = '请确保摄像头设备未被占用，网络畅通后刷新重试。';
+                }
+            },
+
+            createSwordGeometry() {
+                const geometry = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    0.0, 0.0, 2.3,   -0.08, 0.0, 2.0,  0.08, 0.0, 2.0,  
+                    0.0, 0.0, 0.5,   -0.12, 0.0, 0.3,  0.12, 0.0, 0.3,  
+                    -0.18, 0.0, 0.0,  0.18, 0.0, 0.0, -0.1, 0.0, -0.1, 0.1, 0.0, -0.1,  
+                    0.0, 0.0, -0.6,  -0.06, 0.0, -0.4, 0.06, 0.0, -0.4, 0.0, 0.0, -1.2    
+                ]);
+                const indices = [
+                    0, 1, 2, 1, 3, 2, 1, 4, 3, 2, 3, 5, 4, 6, 3, 5, 3, 7, 
+                    6, 8, 9, 7, 9, 8, 6, 9, 7, 
+                    8, 10, 11, 9, 11, 10, 10, 12, 11, 10, 13, 12  
+                ];
+                geometry.setIndex(indices);
+                geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                geometry.computeVertexNormals(); 
+                geometry.rotateY(Math.PI);
+                geometry.scale(3, 3, 3);
+                return geometry;
+            },
+
+            initThree() {
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x020308, 0.0025); 
+
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+                this.camera.position.set(0, 0, 110);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.$refs.container.appendChild(this.renderer.domElement);
+
+                // 星空背景系统
+                const starCount = 3500;
+                const starGeo = new THREE.BufferGeometry();
+                const starPos = new Float32Array(starCount * 3);
+                const starColors = new Float32Array(starCount * 3);
+
+                for(let i=0; i<starCount; i++) {
+                    const r = 400 + Math.random() * 500; 
+                    const theta = 2 * Math.PI * Math.random();
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    starPos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+                    starPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+                    starPos[i*3+2] = r * Math.cos(phi);
+
+                    const color = new THREE.Color();
+                    color.setHSL(0.4 + Math.random() * 0.3, 0.8, 0.6 + Math.random() * 0.4); 
+                    starColors[i*3] = color.r;
+                    starColors[i*3+1] = color.g;
+                    starColors[i*3+2] = color.b;
+                }
+                
+                starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+                starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+
+                this.starMat = new THREE.PointsMaterial({
+                    size: 2.2,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    fog: false
+                });
+
+                this.starField = new THREE.Points(starGeo, this.starMat);
+                this.scene.add(this.starField);
+
+                // 御剑手势全息法阵 (双层交错魔法阵)
+                this.handAura = new THREE.Group();
+                this.scene.add(this.handAura);
+                
+                const ringGeo1 = new THREE.RingGeometry(11, 12, 48);
+                const ringGeo2 = new THREE.RingGeometry(7, 7.6, 36);
+                this.ringMat = new THREE.MeshBasicMaterial({
+                    color: 0x00ff88,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                this.ring1 = new THREE.Mesh(ringGeo1, this.ringMat);
+                this.ring2 = new THREE.Mesh(ringGeo2, this.ringMat);
+                this.ring2.rotation.x = Math.PI / 3; 
+                this.handAura.add(this.ring1);
+                this.handAura.add(this.ring2);
+
+                const swordGeo = this.createSwordGeometry();
+                
+                // 【炫酷视觉升级一】核心材质高级电光化修复
+                this.matCore = new THREE.MeshPhongMaterial({
+                    color: 0x051008, 
+                    emissive: 0x00ff88, 
+                    emissiveIntensity: 1.2,
+                    specular: 0xffffff,
+                    shininess: 60,
+                    side: THREE.DoubleSide, 
+                    flatShading: true       
+                });
+
+                // 通过底层高级注入给核心件增加内部流光极光脉冲纹理
+                this.matCore.onBeforeCompile = (shader) => {
+                    shader.uniforms.uTime = { value: 0 };
+                    shader.uniforms.uVelocity = { value: 0 };
+                    this.matCore.userData.shader = shader;
+                    
+                    shader.vertexShader = `varying vec3 vLocalPos;
+` + shader.vertexShader;
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <begin_vertex>',
+                        `#include <begin_vertex>
+vLocalPos = position;`
+                    );
+                    shader.fragmentShader = `uniform float uTime;
+uniform float uVelocity;
+varying vec3 vLocalPos;
+` + shader.fragmentShader;
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <emissivemap_fragment>',
+                        `#include <emissivemap_fragment>
+                        float wave = sin(vLocalPos.z * 4.0 - uTime * 25.0) * 0.5 + 0.5;
+                        float edge = smoothstep(0.0, 0.15, abs(vLocalPos.x));
+                        totalEmissiveRadiance += totalEmissiveRadiance * (wave * 1.5 * (1.0 + uVelocity * 3.0) * (1.0 - edge));`
+                    );
+                };
+
+                // 【炫酷视觉升级二】外层剑气外壳由单纯Basic升级为动态能量护罩Shader
+                this.matGlow = new THREE.MeshBasicMaterial({
+                    color: 0x00ff88, 
+                    transparent: true, 
+                    opacity: 0.45,
+                    blending: THREE.AdditiveBlending, 
+                    side: THREE.DoubleSide, 
+                    depthWrite: false 
+                });
+
+                this.matGlow.onBeforeCompile = (shader) => {
+                    shader.uniforms.uTime = { value: 0 };
+                    shader.uniforms.uVelocity = { value: 0 };
+                    this.matGlow.userData.shader = shader;
+                    
+                    shader.vertexShader = `varying vec3 vLocalPos;
+` + shader.vertexShader;
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <begin_vertex>',
+                        `#include <begin_vertex>
+vLocalPos = position;`
+                    );
+                    shader.fragmentShader = `uniform float uTime;
+uniform float uVelocity;
+varying vec3 vLocalPos;
+` + shader.fragmentShader;
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        'vec4 diffuseColor = vec4( diffuse, opacity );',
+                        `float aura = sin(vLocalPos.z * 1.8 - uTime * 15.0) * cos(vLocalPos.x * 12.0 + uTime * 6.0);
+                        float fade = smoothstep(2.5, -1.5, vLocalPos.z);
+                        float dynamicOpacity = opacity * (0.25 + 0.75 * abs(aura)) * fade * (1.0 + uVelocity * 1.5);
+                        vec3 dynamicDiffuse = diffuse * (1.0 + uVelocity * 0.8);
+                        vec4 diffuseColor = vec4( dynamicDiffuse, dynamicOpacity );`
+                    );
+                };
+
+                this.meshCore = new THREE.InstancedMesh(swordGeo, this.matCore, CONFIG.swordCount);
+                this.meshGlow = new THREE.InstancedMesh(swordGeo, this.matGlow, CONFIG.swordCount);
+                
+                this.meshCore.matrixAutoUpdate = false;
+                this.meshGlow.matrixAutoUpdate = false;
+
+                this.scene.add(this.meshCore);
+                this.scene.add(this.meshGlow);
+
+                const light1 = new THREE.DirectionalLight(0xffffff, 1.5);
+                light1.position.set(5, 10, 7);
+                this.scene.add(light1);
+                
+                const light2 = new THREE.PointLight(0x00ff88, 2, 300);
+                this.handAura.add(light2); // 圣光绑定在手势圆环核心
+
+                this.scene.add(new THREE.AmbientLight(0x15202c));
+
+                for(let i=0; i<CONFIG.swordCount; i++) {
+                    this.swords.push({
+                        pos: new THREE.Vector3((Math.random()-0.5)*200, (Math.random()-0.5)*150, (Math.random()-0.5)*100),
+                        vel: new THREE.Vector3(),
+                        speed: Math.random() * 0.3 + 0.8
+                    });
+                }
+            },
+
+            startAILoop() {
+                const video = document.getElementById('webcam');
+                const runAI = () => {
+                    if (this.handLandmarker && video.readyState >= 2) {
+                        const res = this.handLandmarker.detectForVideo(video, performance.now());
+                        if (res.landmarks.length > 0) {
+                            const lm = res.landmarks[0];
+                            
+                            const dx = lm[0].x - lm[9].x;
+                            const dy = lm[0].y - lm[9].y;
+                            const handSize = Math.sqrt(dx * dx + dy * dy); 
+                            
+                            let rawZ = (0.16 - handSize) * 750; 
+                            const tz = Math.max(-220, Math.min(100, rawZ)); 
+                            
+                            const scale = (120 - tz) / 100; 
+                            const tx = (0.5 - lm[9].x) * (320 * scale);
+                            const ty = (0.5 - lm[9].y) * (220 * scale);
+
+                            this.targetPos.set(tx, ty, tz);
+                            this.detectGesture(lm);
+                        }
+                    }
+                    if(video.requestVideoFrameCallback) {
+                        video.requestVideoFrameCallback(runAI);
+                    } else {
+                        requestAnimationFrame(runAI);
+                    }
+                };
+                runAI();
+            },
+
+            startRenderLoop() {
+                const clock = new THREE.Clock();
+
+                const loop = () => { 
+                    const dt = Math.min(clock.getDelta(), 0.1); 
+                    this.timeOffset += dt;
+                    const time = this.timeOffset;
+
+                    // 计算手速与速度向量，驱动粒子扭曲爆发
+                    this.velocityVec.copy(this.targetPos).sub(this.lastTargetPos);
+                    const currentVelSpeed = this.velocityVec.length();
+                    this.smoothVelocity = THREE.MathUtils.lerp(this.smoothVelocity, currentVelSpeed, 0.08);
+                    this.lastTargetPos.copy(this.targetPos);
+
+                    // 指数移动平均线（EMA滤波）彻底平滑掉关键点抖动，同时保留跟随滞后的仙气惯性
+                    this.smoothPos.lerp(this.targetPos, 0.16);
+
+                    // 同步手势阵法环位置
+                    this.handAura.position.copy(this.smoothPos);
+                    this.ring1.rotation.z += dt * (2.0 + this.smoothVelocity * 0.4);
+                    this.ring2.rotation.y -= dt * (1.5 + this.smoothVelocity * 0.3);
+                    const ringScale = 1.0 + this.smoothVelocity * 0.08 + Math.sin(time * 6.0) * 0.05;
+                    this.handAura.scale.set(ringScale, ringScale, ringScale);
+
+                    // 更新Shader内部时间属性与速度反应器
+                    if (this.matCore.userData.shader) {
+                        this.matCore.userData.shader.uniforms.uTime.value = time;
+                        this.matCore.userData.shader.uniforms.uVelocity.value = this.smoothVelocity;
+                    }
+                    if (this.matGlow.userData.shader) {
+                        this.matGlow.userData.shader.uniforms.uTime.value = time;
+                        this.matGlow.userData.shader.uniforms.uVelocity.value = this.smoothVelocity;
+                    }
+
+                    // 色彩平滑过滤
+                    this.currentColor.lerp(this.targetColor, 0.08);
+                    this.ringMat.color.copy(this.currentColor);
+                    this.matCore.emissive.copy(this.currentColor);
+                    this.matGlow.color.copy(this.currentColor);
+
+                    // 背景群星随手速狂飙扭曲
+                    if (this.starField) {
+                        this.starField.rotation.y += dt * (0.015 + this.smoothVelocity * 0.01);
+                        this.starMat.size = 2.2 + this.smoothVelocity * 0.5;
+                    }
+
+                    if (this.gestureMode === 'DRAGON') {
+                        const recycledVec = this.history.pop();
+                        recycledVec.copy(this.smoothPos);
+                        this.history.unshift(recycledVec);
+                    }
+
+                    for(let i=0; i<CONFIG.swordCount; i++) {
+                        const s = this.swords[i];
+                        
+                        if (this.gestureMode === 'SHIELD') {
+                            // 【太极阴阳双层交互盾】
+                            const layer = i % 2;
+                            const layerCount = CONFIG.swordCount / 2;
+                            const idx = Math.floor(i / 2);
+                            const phi = Math.acos(1 - 2 * (idx + 0.5) / layerCount);
+                            const speedMultiplier = layer === 0 ? 1.6 : -1.2;
+                            const theta = Math.PI * (1 + Math.sqrt(5)) * idx + time * speedMultiplier;
+                            
+                            const baseRadius = 30 + layer * 8; 
+                            _targetVec.set(
+                                this.smoothPos.x + baseRadius * Math.sin(phi) * Math.cos(theta),
+                                this.smoothPos.y + baseRadius * Math.sin(phi) * Math.sin(theta),
+                                this.smoothPos.z + baseRadius * Math.cos(phi) 
+                            );
+                            // 物理冲击惯性挤压弹性：向移动方向突起
+                            _targetVec.addScaledVector(this.velocityVec, 0.4);
+
+                        } else if (this.gestureMode === 'DAGENG') {
+                            // 【终极形态：万剑归宗 - 百米天罡通天巨剑】
+                            let tx = 0, ty = 0, tz = 0;
+                            if (i < 250) {
+                                // 巨剑主剑身结构
+                                const seg = (i / 250);
+                                const lengthPos = seg * 95; 
+                                const maxWidth = 15.0 * (1.0 - smoothstep(0.75, 1.0, seg));
+                                const side = (i % 2 === 0) ? 1 : -1;
+                                const thickness = (i % 3 - 1) * 1.5;
+                                
+                                tx = side * (Math.floor(i/2) % 6 / 6) * maxWidth;
+                                ty = lengthPos - 30;
+                                tz = thickness;
+                            } else if (i < 340) {
+                                // 巨剑厚重剑护手剑格
+                                const seg = ((i - 250) / 90);
+                                const crossWidth = (seg - 0.5) * 55;
+                                tx = crossWidth;
+                                ty = -30;
+                                tz = (i % 3 - 1) * 2.5;
+                            } else {
+                                // 剑柄和剑镡
+                                const seg = ((i - 340) / 60);
+                                tx = Math.sin(i) * 0.6;
+                                ty = -30 - (seg * 28);
+                                tz = Math.cos(i) * 0.6;
+                            }
+                            
+                            _targetVec.set(tx, ty, tz);
+                            // 让巨剑随着移动方向产生霸气的甩尾倾斜角
+                            _targetVec.applyAxisAngle(new THREE.Vector3(0,0,1), -this.smoothVelocity * 0.04 * Math.sign(this.velocityVec.x));
+                            _targetVec.add(this.smoothPos);
+
+                        } else if (this.gestureMode === 'LOTUS') {
+                            // 【太乙青莲阵：多重莲瓣呼吸开合】
+                            const ring = i % 4; 
+                            const ringIdx = Math.floor(i / 4);
+                            const ringCount = CONFIG.swordCount / 4;
+                            const angle = (ringIdx / ringCount) * Math.PI * 2 + (ring % 2 === 0 ? time : -time) * 0.4;
+                            
+                            // 莲瓣动态呼吸收缩
+                            const bloomWave = Math.sin(time * 2.5 + ring) * 3.0;
+                            const r = 12 + ring * 10 + bloomWave; 
+                            const heightOffset = ring * 3.5 + Math.cos(time * 2.0 + ring) * 2.0;
+                            
+                            _targetVec.set(
+                                this.smoothPos.x + Math.cos(angle) * r, 
+                                this.smoothPos.y + Math.sin(angle) * r,
+                                this.smoothPos.z + heightOffset - 12
+                            );
+
+                        } else {
+                            // 【游龙天煞旋：超音速气流钻头风暴】
+                            const idx = Math.min(Math.floor(i / 2.5), this.historyLength - 1); 
+                            const h = this.history[idx] || this.smoothPos; 
+                            
+                            // 环绕轨迹进行星际飞车般的螺旋高速打转
+                            const spiralAngle = time * 12.0 + i * 0.35;
+                            const radius = 6.0 + (idx * 0.18); 
+                            
+                            _targetVec.set(
+                                h.x + Math.cos(spiralAngle) * radius,
+                                h.y + Math.sin(spiralAngle) * radius,
+                                h.z + Math.sin(time * 6.0 + i) * 3.0
+                            );
+                        }
+
+                        // 核心动力学迭代加速
+                        _forceVec.copy(_targetVec).sub(s.pos).normalize().multiplyScalar(CONFIG.maxForce);
+                        
+                        // 游龙模式添加紊流粒子震颤感
+                        if(this.gestureMode === 'DRAGON') {
+                            _forceVec.x += Math.sin(time * 8.0 + i) * 3.0;
+                            _forceVec.y += Math.cos(time * 8.0 + i) * 3.0;
+                        }
+
+                        // 挥动手速快时，飞剑解锁超载限速，冲刺更加极速狂暴
+                        const velocityCap = CONFIG.maxSpeed * (1.0 + this.smoothVelocity * 0.12);
+                        s.vel.add(_forceVec).clampLength(0, velocityCap);
+                        s.pos.addScaledVector(s.vel, dt * 60 * 0.016); 
+
+                        _dummy.position.copy(s.pos);
+                        
+                        // 特殊阵法朝向调校
+                        if (this.gestureMode === 'DAGENG') {
+                            // 万剑归宗形态下，所有单一小剑全部万剑齐发、剑尖死死指向巨剑前方（正Y方向）
+                            _lookAtVec.copy(s.pos).add(new THREE.Vector3(0, 1, 0));
+                            _dummy.lookAt(_lookAtVec);
+                            _dummy.rotateX(Math.PI / 2); // 纠正矩阵基准轴
+                        } else {
+                            _lookAtVec.copy(s.pos).add(s.vel);
+                            _dummy.lookAt(_lookAtVec); 
+                        }
+                        
+                        // 随着手速扩张核心件大小与能量罩膨胀
+                        const speedScaleBoost = this.smoothVelocity * 0.06;
+                        _dummy.scale.setScalar(1.0 + speedScaleBoost);
+                        _dummy.updateMatrix();
+                        this.meshCore.setMatrixAt(i, _dummy.matrix);
+
+                        // 气流防护罩高频波形颤动
+                        const highFreqPulse = Math.sin(time * 18.0 + i) * 0.12;
+                        _dummy.scale.setScalar(1.45 + highFreqPulse + speedScaleBoost * 1.5);
+                        _dummy.updateMatrix();
+                        this.meshGlow.setMatrixAt(i, _dummy.matrix);
+                    }
+
+                    this.meshCore.instanceMatrix.needsUpdate = true;
+                    this.meshGlow.instanceMatrix.needsUpdate = true;
+
+                    this.renderer.render(this.scene, this.camera);
+                    requestAnimationFrame(loop);
+                };
+                loop();
+            },
+
+            detectGesture(lm) {
+                const isOpen = (idx) => lm[idx].y < lm[idx-2].y;
+                const fingers = [isOpen(8), isOpen(12), isOpen(16), isOpen(20)].filter(Boolean).length;
+
+                let m = 'DRAGON';
+                if (fingers === 0) m = 'SHIELD'; 
+                else if (fingers === 4) m = 'LOTUS'; 
+                else if (isOpen(8) && isOpen(20) && !isOpen(12)) m = 'DAGENG'; 
+
+                if (m !== this.pendingMode) {
+                    this.pendingMode = m;
+                    this.lastModeTime = Date.now();
+                } else if (Date.now() - this.lastModeTime > 180 && this.gestureMode !== m) { 
+                    this.gestureMode = m;
+                    this.updateColor(m);
+                }
+            },
+
+            updateColor(mode) {
+                this.targetColor.set(CONFIG.colors[mode]);
+                this.activeColor = CONFIG.colors[mode];
+                
+                const texts = {
+                    'SHIELD': '🛡️ 不动明王盾',
+                    'LOTUS': '🌸 太乙青莲阵',
+                    'DAGENG': '⚔️ 万剑归宗巨剑',
+                    'DRAGON': '🐉 游龙天煞旋'
+                };
+                this.statusText = texts[mode];
+            },
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+    });
+
+    // 辅助光滑阶梯函数
+    function smoothstep(min, max, value) {
+        var x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+        return x * x * (3 - 2 * x);
+    }
+</script>
+</body>
+</html>

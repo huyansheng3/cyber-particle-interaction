@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绯红魔法阵 - 终极视觉特效版 (附带系统自检)</title>
+    <script src="../lib/extra/tailwindcss.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        #input-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; transform: scaleX(-1); }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #intro-panel { pointer-events: auto; background: rgba(10, 0, 0, 0.85); padding: 40px; border-radius: 10px; border: 1px solid #ff2200; text-align: center; box-shadow: 0 0 50px rgba(255, 34, 0, 0.6); backdrop-filter: blur(5px); }
+        .btn-magic { background: #330000; border: 2px solid #ff4500; color: #ff8800; padding: 15px 50px; font-size: 1.5rem; font-weight: bold; cursor: pointer; transition: all 0.3s; border-radius: 5px; text-shadow: 0 0 10px #ff0000; box-shadow: inset 0 0 20px #881100; }
+        .btn-magic:hover { background: #ff2200; color: white; box-shadow: 0 0 30px #ff4500, inset 0 0 20px #ffaaaa; transform: scale(1.05); }
+        #hud-status { transition: all 0.3s; max-width: 80%; text-align: center; }
+    </style>
+
+    <script type="importmap">
+        { "imports": { "three": "../lib/three.0.160.0.module.js" } }
+    </script>
+    <script src="../lib/mediapipe/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="../lib/mediapipe/hands.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <video id="input-video" autoplay playsinline muted></video>
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div id="intro-panel">
+            <h1 class="text-5xl font-bold text-red-500 mb-2 tracking-widest" style="text-shadow: 0 0 20px #ff0000;">禁忌法阵</h1>
+            <h2 class="text-xl text-orange-400 mb-8" style="text-shadow: 0 0 10px #ff6600;">[ 高阶视觉特效模式 ]</h2>
+            <button id="start-btn" class="btn-magic">展开领域</button>
+        </div>
+        <div id="hud-status" class="hidden absolute bottom-10 text-red-500 font-bold tracking-widest text-xl" style="background: rgba(0,0,0,0.8); padding: 15px 30px; border: 1px solid #ff0000; box-shadow: 0 0 15px #ff0000; border-radius: 5px;">
+            等待施法者连接...
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const HANDS_DATA = [{ active: false, x: 0.5, y: 0.5, size: 0.2 }, { active: false, x: 0.5, y: 0.5, size: 0.2 }];
+        let scene, camera, renderer, magicCircles = [];
+        const CAMERA_Z = 10;
+        let time = 0;
+
+        // 特效纹理生成
+        function createMagicTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            const cx = 512, cy = 512;
+
+            ctx.shadowBlur = 15; ctx.shadowColor = '#ff3300';
+            ctx.strokeStyle = '#ff6600'; ctx.fillStyle = '#ff6600'; ctx.lineWidth = 4;
+
+            if (type === 'glow') {
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 400);
+                grad.addColorStop(0, 'rgba(255, 100, 0, 0.4)');
+                grad.addColorStop(0.5, 'rgba(255, 20, 0, 0.1)');
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 1024);
+            } 
+            else if (type === 'runes') {
+                ctx.beginPath(); ctx.arc(cx, cy, 460, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(cx, cy, 380, 0, Math.PI * 2); ctx.stroke();
+                const runes = "ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ ᚷ ᚹ ᚺ ᚾ ᛁ ᛃ ᛇ ᛈ ᛉ ᛊ ᛏ ᛒ ᛖ ᛗ ᛚ ᛜ ᛟ ᛞ ✦ ✧ ❂ ✺";
+                const runesArr = runes.split(" ");
+                ctx.font = "40px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                for (let i = 0; i < 36; i++) {
+                    const angle = (i / 36) * Math.PI * 2;
+                    ctx.save();
+                    ctx.translate(cx + Math.cos(angle) * 420, cy + Math.sin(angle) * 420);
+                    ctx.rotate(angle + Math.PI/2);
+                    ctx.fillText(runesArr[i % runesArr.length], 0, 0);
+                    ctx.restore();
+                }
+            } 
+            else if (type === 'stars') {
+                function drawPolygon(radius, sides, rotationOffset) {
+                    ctx.beginPath();
+                    for(let i=0; i<=sides; i++) {
+                        const angle = rotationOffset + (i / sides) * Math.PI * 2;
+                        const x = cx + Math.cos(angle) * radius; const y = cy + Math.sin(angle) * radius;
+                        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                    }
+                    ctx.closePath(); ctx.stroke();
+                }
+                ctx.lineWidth = 6;
+                drawPolygon(360, 3, -Math.PI/2); drawPolygon(360, 3, Math.PI/6);  
+                ctx.beginPath(); ctx.arc(cx, cy, 220, 0, Math.PI * 2); ctx.stroke();
+                for(let i=0; i<24; i++) {
+                    const angle = (i/24) * Math.PI*2;
+                    ctx.beginPath(); ctx.moveTo(cx + Math.cos(angle)*220, cy + Math.sin(angle)*220);
+                    ctx.lineTo(cx + Math.cos(angle)*240, cy + Math.sin(angle)*240); ctx.stroke();
+                }
+            }
+            else if (type === 'core') {
+                function drawPolygon(radius, sides, rotationOffset) {
+                    ctx.beginPath();
+                    for(let i=0; i<=sides; i++) {
+                        const angle = rotationOffset + (i / sides) * Math.PI * 2;
+                        const x = cx + Math.cos(angle) * radius; const y = cy + Math.sin(angle) * radius;
+                        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                    }
+                    ctx.closePath(); ctx.stroke();
+                }
+                ctx.beginPath(); ctx.arc(cx, cy, 150, 0, Math.PI * 2); ctx.stroke();
+                drawPolygon(150, 4, 0); drawPolygon(150, 4, Math.PI/4);
+                ctx.shadowBlur = 30; ctx.shadowColor = '#ffffff'; ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fill();
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.generateMipmaps = true; texture.minFilter = THREE.LinearMipmapLinearFilter;
+            return texture;
+        }
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = CAMERA_Z;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0); 
+            container.appendChild(renderer.domElement);
+
+            const texGlow = createMagicTexture('glow');
+            const texRunes = createMagicTexture('runes');
+            const texStars = createMagicTexture('stars');
+            const texCore = createMagicTexture('core');
+            const baseMatConfig = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide };
+
+            for(let i=0; i<2; i++) {
+                const group = new THREE.Group();
+                const meshGlow = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({ ...baseMatConfig, map: texGlow, opacity: 0.8 }));
+                meshGlow.position.z = -0.1;
+                const meshRunes = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), new THREE.MeshBasicMaterial({ ...baseMatConfig, map: texRunes, color: 0xff3300 }));
+                const meshStars = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), new THREE.MeshBasicMaterial({ ...baseMatConfig, map: texStars, color: 0xffaa00 }));
+                meshStars.position.z = 0.05; 
+                const meshCore = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), new THREE.MeshBasicMaterial({ ...baseMatConfig, map: texCore, color: 0xffffff }));
+                meshCore.position.z = 0.1;
+
+                group.add(meshGlow); group.add(meshRunes); group.add(meshStars); group.add(meshCore);
+                group.visible = false; scene.add(group); magicCircles.push(group);
+            }
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+            const vFov = camera.fov * Math.PI / 180;
+            const viewHeight = 2 * Math.tan(vFov / 2) * CAMERA_Z;
+            const viewWidth = viewHeight * camera.aspect;
+
+            for(let i=0; i<2; i++) {
+                const circle = magicCircles[i];
+                const data = HANDS_DATA[i];
+
+                if(data.active) {
+                    circle.visible = true;
+                    const targetX = (data.x - 0.5) * viewWidth;
+                    const targetY = -(data.y - 0.5) * viewHeight;
+                    circle.position.x += (targetX - circle.position.x) * 0.2;
+                    circle.position.y += (targetY - circle.position.y) * 0.2;
+                    
+                    const targetScale = data.size * viewHeight * 0.9; 
+                    circle.scale.lerp(new THREE.Vector3(targetScale, targetScale, 1), 0.2);
+
+                    circle.children[1].rotation.z = time * 0.5;
+                    circle.children[2].rotation.z = -time * 0.8;
+                    const pulse = 1.0 + Math.sin(time * 5) * 0.05;
+                    circle.children[2].scale.set(pulse, pulse, 1);
+                    circle.children[3].rotation.z = time * 2.0;
+                    
+                    circle.rotation.x = Math.sin(time * 2) * 0.1; 
+                    circle.rotation.y = Math.cos(time * 2) * 0.1;
+                } else {
+                    circle.scale.lerp(new THREE.Vector3(0.01, 0.01, 1), 0.2);
+                    if(circle.scale.x < 0.05) circle.visible = false;
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function updateHUD(text, color = "#ff0000") {
+            const hud = document.getElementById('hud-status');
+            hud.innerText = text;
+            hud.style.color = color;
+            hud.style.borderColor = color;
+            hud.style.boxShadow = `0 0 15px ${color}`;
+        }
+
+        async function startSystem() {
+            document.getElementById('intro-panel').style.display = 'none';
+            const hud = document.getElementById('hud-status');
+            hud.classList.remove('hidden');
+            
+            updateHUD("正在链接空间节点...", "#ffaa00");
+
+            try {
+                // 1. 初始化 3D 环境
+                initThree();
+
+                // 2. 检查浏览器安全限制
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("浏览器安全拦截：请不要直接双击打开文件，必须使用 Live Server 启动，或部署到 HTTPS。");
+                }
+
+                // 3. 请求摄像头权限
+                updateHUD("请求视觉权限中 (请在弹窗点允许)...", "#ffaa00");
+                const videoElement = document.getElementById('input-video');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 }});
+                videoElement.srcObject = stream;
+                // 确保视频完全加载后再继续
+                await new Promise(resolve => videoElement.onloadedmetadata = resolve);
+                videoElement.play();
+
+                // 4. 加载 AI 模型 (网络慢的话这里会卡)
+                updateHUD("下载魔力解析引擎中 (初次加载可能需要10-20秒，请稍候)...", "#ffaa00");
+                const hands = new Hands({locateFile: (file) => ({"hands.binarypb": "../lib/mediapipe/hands/hands.binarypb", "hands_solution_packed_assets_loader.js": "../lib/mediapipe/hands/hands_solution_packed_assets_loader.js", "hands_solution_packed_assets.data": "../lib/mediapipe/hands/hands_solution_packed_assets.data", "hands_solution_simd_wasm_bin.js": "../lib/mediapipe/hands/hands_solution_simd_wasm_bin.js", "hands_solution_wasm_bin.js": "../lib/mediapipe/hands/hands_solution_wasm_bin.js", "hands_solution_simd_wasm_bin.wasm": "../lib/mediapipe/hands/hands_solution_simd_wasm_bin.wasm", "hands_solution_wasm_bin.wasm": "../lib/mediapipe/hands/hands_solution_wasm_bin.wasm", "hand_landmark_full.tflite": "../lib/mediapipe/hands/hand_landmark_full.tflite", "hand_landmark_lite.tflite": "../lib/mediapipe/hands/hand_landmark_lite.tflite"})[file] || file});
+                hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+
+                hands.onResults((results) => {
+                    HANDS_DATA.forEach(h => h.active = false);
+
+                    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                        updateHUD(`法阵共鸣完毕 (锁定 ${results.multiHandLandmarks.length} 目标)`, "#00ff00");
+                        
+                        results.multiHandLandmarks.forEach((landmarks, index) => {
+                            if (index < 2) {
+                                const wrist = landmarks[0];
+                                const middleBase = landmarks[9];
+                                const middleTip = landmarks[12];
+                                
+                                HANDS_DATA[index].active = true;
+                                HANDS_DATA[index].x = 1.0 - (wrist.x + middleBase.x) / 2;
+                                HANDS_DATA[index].y = (wrist.y + middleBase.y) / 2;
+                                const dx = wrist.x - middleTip.x;
+                                const dy = wrist.y - middleTip.y;
+                                HANDS_DATA[index].size = Math.sqrt(dx*dx + dy*dy);
+                            }
+                        });
+                    } else {
+                        updateHUD("法力溢散 (未检测到施法者)", "#ff0000");
+                    }
+                });
+
+                // 5. 启动循环检测
+                const cameraUtils = new Camera(videoElement, {
+                    onFrame: async () => { await hands.send({ image: videoElement }); },
+                    width: 1280, height: 720
+                });
+                await cameraUtils.start();
+
+            } catch (err) {
+                // 如果出现任何错误，这里会捕获并显示在屏幕上
+                console.error(err);
+                updateHUD(`❌ 系统崩溃: ${err.message}`, "#ff0000");
+            }
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startSystem);
+
+        window.addEventListener('resize', () => {
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+    </script>
+</body>
+</html>

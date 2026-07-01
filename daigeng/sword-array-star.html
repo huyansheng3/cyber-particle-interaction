@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>青竹蜂云剑 - 深邃星空增强版</title>
+
+    <script src="../lib/vue.min.js"></script>
+    <script src="../lib/three.r128.min.js"></script>
+    <script type="module">
+        import { FilesetResolver, HandLandmarker } from "../lib/mediapipe/vision_bundle.0.10.3.mjs";
+        window.FilesetResolver = FilesetResolver;
+        window.HandLandmarker = HandLandmarker;
+        window.AI_MODULE_LOADED = true;
+    </script>
+
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; color: white; font-family: sans-serif; 
+            /* 【星空背景优化1】底层替换为深蓝紫色的径向渐变，告别死黑 */
+            background: radial-gradient(circle at 50% 50%, #0d1321 0%, #030407 100%);
+        }
+        #app { width: 100vw; height: 100vh; position: relative; }
+        #canvas-container { position: absolute; inset: 0; z-index: 1; }
+        
+        .ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        
+        .status-tag { 
+            display: inline-block; padding: 8px 16px; 
+            background: rgba(0,0,0,0.6); 
+            border: 1px solid #00ff88; 
+            border-radius: 4px; 
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .hint-text { margin-top: 10px; font-size: 24px; font-weight: bold; transition: color 0.3s ease; }
+
+        .gesture-guide {
+            margin-top: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px 20px;
+            backdrop-filter: blur(8px);
+            display: inline-block;
+        }
+        .guide-title {
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .guide-item {
+            font-size: 15px;
+            color: #666;
+            margin: 12px 0;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+        }
+        .guide-icon { font-size: 20px; margin-right: 10px; }
+
+        #webcam { 
+            position: absolute; bottom: 20px; right: 20px; 
+            width: 160px; height: 120px; 
+            border-radius: 8px; transform: scaleX(-1); 
+            opacity: 0.5; z-index: 5; border: 1px solid #333; 
+        }
+        
+        .loading-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div v-if="!isReady" class="loading-overlay">
+        <h2 :style="{ color: activeColor }">{{ statusText }}</h2>
+        <p style="color: #aaa; margin-top: 10px;">{{ hintText }}</p>
+    </div>
+
+    <div id="canvas-container" ref="container"></div>
+    <video id="webcam" autoplay playsinline muted></video>
+
+    <!-- UI 面板 -->
+    <div class="ui-overlay" v-show="isReady">
+        <div class="status-tag" :style="{ color: activeColor, borderColor: activeColor, boxShadow: '0 0 15px ' + activeColor }">
+            {{ statusText }}
+        </div>
+        
+        <div class="gesture-guide">
+            <div class="guide-title">【 御剑手势诀 】</div>
+            <div class="guide-item" :style="gestureMode === 'DRAGON' ? activeStyle : {}">
+                <span class="guide-icon">☝️</span> 伸出食指：游龙随行
+            </div>
+            <div class="guide-item" :style="gestureMode === 'LOTUS' ? activeStyle : {}">
+                <span class="guide-icon">🖐️</span> 张开五指：青莲剑阵
+            </div>
+            <div class="guide-item" :style="gestureMode === 'SHIELD' ? activeStyle : {}">
+                <span class="guide-icon">✊</span> 紧握拳头：剑盾防御
+            </div>
+            <div class="guide-item" :style="gestureMode === 'DAGENG' ? activeStyle : {}">
+                <span class="guide-icon">🤘</span> 摇滚手势：大庚剑阵
+            </div>
+            <div class="guide-title" style="margin-top:15px; color:#ff0055;">(手离屏幕越远，阵法越庞大)</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CONFIG = {
+        swordCount: 400,
+        locateFile: (f) => ({
+            "vision_wasm_internal.js": "../lib/mediapipe/vision/vision_wasm_internal.js",
+            "vision_wasm_nosimd_internal.js": "../lib/mediapipe/vision/vision_wasm_nosimd_internal.js",
+            "vision_wasm_internal.wasm": "../lib/mediapipe/vision/vision_wasm_internal.wasm",
+            "vision_wasm_nosimd_internal.wasm": "../lib/mediapipe/vision/vision_wasm_nosimd_internal.wasm"
+        })[f] || f,
+        modelPath: "../lib/mediapipe/vision/hand_landmarker.task",
+        maxSpeed: 160, 
+        maxForce: 5.5,
+        colors: {
+            'SHIELD': '#00ffff',  
+            'LOTUS': '#ffaa00',   
+            'DAGENG': '#ff0055',  
+            'DRAGON': '#00ff88'   
+        }
+    };
+
+    const _targetVec = new THREE.Vector3();
+    const _forceVec = new THREE.Vector3();
+    const _lookAtVec = new THREE.Vector3();
+    const _dummy = new THREE.Object3D();
+
+    new Vue({
+        el: '#app',
+        data: {
+            isReady: false,
+            statusText: '⏳ 正在通过网络下载AI引擎...',
+            hintText: '首次打开需要下载模型，请保持网络畅通并稍候...',
+            activeColor: '#00ff88',
+            gestureMode: 'DRAGON'
+        },
+        computed: {
+            activeStyle() {
+                return {
+                    color: this.activeColor,
+                    textShadow: `0 0 10px ${this.activeColor}`,
+                    fontWeight: 'bold',
+                    transform: 'translateX(10px) scale(1.05)'
+                };
+            }
+        },
+        mounted() {
+            this.targetPos = new THREE.Vector3(0, 0, 0);
+            this.historyLength = 150;
+            this.history = Array(this.historyLength).fill().map(() => new THREE.Vector3());
+            
+            this.pendingMode = 'DRAGON';
+            this.lastModeTime = 0;
+            this.swords = [];
+            this.timeOffset = 0;
+
+            const checkLoad = setInterval(() => {
+                if (window.AI_MODULE_LOADED && window.THREE) {
+                    clearInterval(checkLoad);
+                    this.statusText = '🎥 请求摄像头权限...';
+                    this.hintText = '请在浏览器弹窗中允许使用摄像头';
+                    this.initThree();
+                    this.initAI();
+                }
+            }, 500);
+            
+            window.addEventListener('resize', this.onResize);
+        },
+        methods: {
+            async initAI() {
+                try {
+                    const video = document.getElementById('webcam');
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 640, height: 480, frameRate: { ideal: 30 } } 
+                    });
+                    video.srcObject = stream;
+
+                    this.statusText = '🧠 正在初始化AI模型...';
+                    this.hintText = '正在解析手部特征网络 (约3MB)';
+
+                    // 直接构造 fileset 对象，绕过 FilesetResolver.forVisionTasks（其只接受单一 baseUrl 字符串）
+                    // 使用与 vision_bundle.0.10.3.mjs 匹配的 wasm-0.10.3 文件
+                    const isSimd = await window.FilesetResolver.isSimdSupported().catch(() => true);
+                    const vision = {
+                        wasmLoaderPath: isSimd
+                            ? "../lib/mediapipe/vision/vision_wasm_internal.js"
+                            : "../lib/mediapipe/vision/vision_wasm_nosimd_internal.js",
+                        wasmBinaryPath: isSimd
+                            ? "../lib/mediapipe/vision/vision_wasm_internal.wasm"
+                            : "../lib/mediapipe/vision/vision_wasm_nosimd_internal.wasm"
+                    };
+                    this.handLandmarker = await window.HandLandmarker.createFromOptions(vision, {
+                        baseOptions: { modelAssetPath: CONFIG.modelPath, delegate: "GPU" },
+                        runningMode: "VIDEO",
+                        numHands: 1
+                    });
+                    
+                    this.isReady = true;
+                    this.statusText = '🐉 游龙随行';
+                    this.hintText = '已就绪';
+                    
+                    this.startAILoop();
+                    this.startRenderLoop();
+                } catch (err) {
+                    console.error(err);
+                    this.activeColor = '#ff0055';
+                    this.statusText = '❌ 摄像头或模型加载失败';
+                    this.hintText = '请检查网络连接、摄像头权限，按 F12 查看详细报错。';
+                }
+            },
+
+            createSwordGeometry() {
+                const geometry = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    0.0, 0.0, 2.0,   -0.08, 0.0, 1.8,  0.08, 0.0, 1.8,  
+                    0.0, 0.0, 0.5,   -0.12, 0.0, 0.3,  0.12, 0.0, 0.3,  
+                    -0.15, 0.0, 0.0,  0.15, 0.0, 0.0, -0.1, 0.0, -0.1, 0.1, 0.0, -0.1,  
+                    0.0, 0.0, -0.5,  -0.06, 0.0, -0.3, 0.06, 0.0, -0.3, 0.0, 0.0, -1.0    
+                ]);
+                const indices = [
+                    0, 1, 2, 1, 3, 2, 1, 4, 3, 2, 3, 5, 4, 6, 3, 5, 3, 7, 
+                    6, 8, 9, 7, 9, 8, 6, 9, 7, 
+                    8, 10, 11, 9, 11, 10, 10, 12, 11, 10, 13, 12  
+                ];
+                geometry.setIndex(indices);
+                geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                geometry.computeVertexNormals(); 
+                geometry.rotateY(Math.PI);
+                geometry.scale(3, 3, 3);
+                return geometry;
+            },
+
+            initThree() {
+                this.scene = new THREE.Scene();
+                // 修正雾气颜色以匹配深蓝色背景
+                this.scene.fog = new THREE.FogExp2(0x050810, 0.003); 
+
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+                this.camera.position.set(0, 0, 100);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.$refs.container.appendChild(this.renderer.domElement);
+
+                // ================= 【星空背景优化2】创建3D星海 =================
+                const starCount = 4000;
+                const starGeo = new THREE.BufferGeometry();
+                const starPos = new Float32Array(starCount * 3);
+                const starColors = new Float32Array(starCount * 3);
+
+                for(let i=0; i<starCount; i++) {
+                    // 将星星随机分布在一个巨大的球体空间里
+                    const r = 300 + Math.random() * 600; // 半径
+                    const theta = 2 * Math.PI * Math.random();
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    starPos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+                    starPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+                    starPos[i*3+2] = r * Math.cos(phi);
+
+                    // 为星星生成仙侠风随机色（青绿 -> 幽蓝 -> 紫色）
+                    const color = new THREE.Color();
+                    color.setHSL(0.5 + Math.random() * 0.3, 0.8, 0.5 + Math.random() * 0.5); 
+                    starColors[i*3] = color.r;
+                    starColors[i*3+1] = color.g;
+                    starColors[i*3+2] = color.b;
+                }
+                
+                starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+                starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+
+                const starMat = new THREE.PointsMaterial({
+                    size: 2.0,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    fog: false // 让星空不受深处雾气影响，保持闪亮
+                });
+
+                this.starField = new THREE.Points(starGeo, starMat);
+                this.scene.add(this.starField);
+                // ==========================================================
+
+                const swordGeo = this.createSwordGeometry();
+                const matCore = new THREE.MeshLambertMaterial({
+                    color: 0xffffff, emissive: 0x00ff88, emissiveIntensity: 0.5,
+                    side: THREE.DoubleSide, flatShading: true       
+                });
+
+                const matGlow = new THREE.MeshBasicMaterial({
+                    color: 0x00ff88, transparent: true, opacity: 0.4,
+                    blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false 
+                });
+
+                this.meshCore = new THREE.InstancedMesh(swordGeo, matCore, CONFIG.swordCount);
+                this.meshGlow = new THREE.InstancedMesh(swordGeo, matGlow, CONFIG.swordCount);
+                
+                this.meshCore.matrixAutoUpdate = false;
+                this.meshGlow.matrixAutoUpdate = false;
+
+                this.scene.add(this.meshCore);
+                this.scene.add(this.meshGlow);
+
+                const light = new THREE.DirectionalLight(0xffffff, 1);
+                light.position.set(1, 1, 2);
+                this.scene.add(light);
+                this.scene.add(new THREE.AmbientLight(0x606060));
+
+                for(let i=0; i<CONFIG.swordCount; i++) {
+                    this.swords.push({
+                        pos: new THREE.Vector3((Math.random()-0.5)*150, (Math.random()-0.5)*100, (Math.random()-0.5)*50),
+                        vel: new THREE.Vector3(),
+                        speed: Math.random() * 0.2 + 0.8
+                    });
+                }
+            },
+
+            startAILoop() {
+                const video = document.getElementById('webcam');
+                const runAI = () => {
+                    if (this.handLandmarker && video.readyState >= 2) {
+                        const res = this.handLandmarker.detectForVideo(video, performance.now());
+                        if (res.landmarks.length > 0) {
+                            const lm = res.landmarks[0];
+                            
+                            const dx = lm[0].x - lm[9].x;
+                            const dy = lm[0].y - lm[9].y;
+                            const handSize = Math.sqrt(dx * dx + dy * dy); 
+                            
+                            // 反转深度：手小(远)则Z轴大靠近屏幕，手大(近)则缩进深处
+                            let rawZ = (0.15 - handSize) * 600; 
+                            const tz = Math.max(-150, Math.min(80, rawZ)); 
+                            
+                            // 扩大的运动映射
+                            const scale = (100 - tz) / 100; 
+                            const tx = (0.5 - lm[9].x) * (280 * scale);
+                            const ty = (0.5 - lm[9].y) * (180 * scale);
+
+                            this.targetPos.lerp(_targetVec.set(tx, ty, tz), 0.35);
+
+                            this.detectGesture(lm);
+                        }
+                    }
+                    if(video.requestVideoFrameCallback) {
+                        video.requestVideoFrameCallback(runAI);
+                    } else {
+                        requestAnimationFrame(runAI);
+                    }
+                };
+                runAI();
+            },
+
+            startRenderLoop() {
+                const clock = new THREE.Clock();
+
+                const loop = () => { 
+                    const dt = Math.min(clock.getDelta(), 0.1); 
+                    this.timeOffset += dt;
+                    const time = this.timeOffset;
+
+                    // 【星空背景优化3】让整个星空缓慢自转，产生浩瀚宇宙感
+                    if (this.starField) {
+                        this.starField.rotation.y += dt * 0.02;
+                        this.starField.rotation.x += dt * 0.01;
+                    }
+
+                    if (this.gestureMode === 'DRAGON') {
+                        const recycledVec = this.history.pop();
+                        recycledVec.copy(this.targetPos);
+                        this.history.unshift(recycledVec);
+                    }
+
+                    for(let i=0; i<CONFIG.swordCount; i++) {
+                        const s = this.swords[i];
+                        
+                        if (this.gestureMode === 'SHIELD') {
+                            const radius = 35; 
+                            const phi = Math.acos(1 - 2 * (i+0.5) / CONFIG.swordCount);
+                            const theta = Math.PI * (1 + Math.sqrt(5)) * i + time;
+                            _targetVec.set(
+                                this.targetPos.x + radius * Math.sin(phi) * Math.cos(theta),
+                                this.targetPos.y + radius * Math.sin(phi) * Math.sin(theta),
+                                this.targetPos.z + radius * Math.cos(phi) 
+                            );
+                        } else if (this.gestureMode === 'DAGENG') {
+                            const col = i % 20; 
+                            const row = Math.floor(i / 20);
+                            _targetVec.set(
+                                this.targetPos.x + (col - 10) * 8, 
+                                this.targetPos.y + (row - 10) * 8, 
+                                this.targetPos.z + Math.sin(time * 2 + i * 0.1) * 15 
+                            );
+                        } else if (this.gestureMode === 'LOTUS') {
+                            const angle = i * 0.4 + time * 0.5;
+                            const r = (i % 40) * 1.5 + 10; 
+                            _targetVec.set(
+                                this.targetPos.x + Math.cos(angle) * r, 
+                                this.targetPos.y + Math.sin(angle) * r,
+                                this.targetPos.z + Math.sin(time * 2 + r * 0.1) * 20 
+                            );
+                        } else {
+                            const idx = Math.min(Math.floor(i / 3), this.historyLength - 1); 
+                            const h = this.history[idx] || this.targetPos; 
+                            
+                            const tailSpread = (idx / 15);
+                            const spread = 5 + tailSpread + (i % 6) * 1.2; 
+                            
+                            _targetVec.set(
+                                h.x + Math.cos(time * 5 + i) * spread,
+                                h.y + Math.sin(time * 5 + i) * spread,
+                                h.z + Math.cos(time * 4 + i) * spread 
+                            );
+                        }
+
+                        _forceVec.copy(_targetVec).sub(s.pos).normalize().multiplyScalar(CONFIG.maxForce);
+                        s.vel.add(_forceVec).clampLength(0, CONFIG.maxSpeed);
+                        s.pos.addScaledVector(s.vel, dt * 60 * 0.016); 
+
+                        _dummy.position.copy(s.pos);
+                        _lookAtVec.copy(s.pos).add(s.vel);
+                        _dummy.lookAt(_lookAtVec); 
+                        
+                        _dummy.scale.setScalar(1);
+                        _dummy.updateMatrix();
+                        this.meshCore.setMatrixAt(i, _dummy.matrix);
+
+                        _dummy.scale.setScalar(1.3);
+                        _dummy.updateMatrix();
+                        this.meshGlow.setMatrixAt(i, _dummy.matrix);
+                    }
+
+                    this.meshCore.instanceMatrix.needsUpdate = true;
+                    this.meshGlow.instanceMatrix.needsUpdate = true;
+
+                    this.renderer.render(this.scene, this.camera);
+                    requestAnimationFrame(loop);
+                };
+                loop();
+            },
+
+            detectGesture(lm) {
+                const isOpen = (idx) => lm[idx].y < lm[idx-2].y;
+                const fingers = [isOpen(8), isOpen(12), isOpen(16), isOpen(20)].filter(Boolean).length;
+
+                let m = 'DRAGON';
+                if (fingers === 0) m = 'SHIELD'; 
+                else if (fingers === 4) m = 'LOTUS'; 
+                else if (isOpen(8) && isOpen(20) && !isOpen(12)) m = 'DAGENG'; 
+
+                if (m !== this.pendingMode) {
+                    this.pendingMode = m;
+                    this.lastModeTime = Date.now();
+                } else if (Date.now() - this.lastModeTime > 200 && this.gestureMode !== m) { 
+                    this.gestureMode = m;
+                    this.updateColor(m);
+                }
+            },
+
+            updateColor(mode) {
+                const cHex = CONFIG.colors[mode];
+                this.activeColor = cHex;
+                const c = new THREE.Color(cHex);
+                
+                this.meshCore.material.emissive.copy(c);
+                this.meshGlow.material.color.copy(c);
+                
+                const texts = {
+                    'SHIELD': '🛡️ 绝对防御',
+                    'LOTUS': '🌸 青莲剑阵',
+                    'DAGENG': '⚔️ 大庚剑阵',
+                    'DRAGON': '🐉 游龙随行'
+                };
+                this.statusText = texts[mode];
+            },
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+    });
+</script>
+</body>
+</html>

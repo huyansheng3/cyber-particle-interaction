@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圣金粒子法阵 - 终极复合加粗版</title>
+    <script src="../lib/extra/tailwindcss.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        
+        #input-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; transform: scaleX(-1); }
+        
+        /* 均匀深沉的暗色蒙版 */
+        #dark-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none;
+            background: rgba(12, 6, 2, 0.75); 
+            transition: opacity 1s ease;
+        }
+
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #intro-panel { pointer-events: auto; background: rgba(15, 10, 0, 0.85); padding: 50px; border-radius: 15px; border: 1px solid #ffcc00; text-align: center; box-shadow: 0 0 80px rgba(255, 180, 0, 0.2); backdrop-filter: blur(8px); }
+        
+        .btn-magic { background: #221100; border: 2px solid #ffaa00; color: #ffdd44; padding: 15px 60px; font-size: 1.5rem; font-weight: bold; cursor: pointer; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 8px; text-shadow: 0 0 10px #ffaa00; box-shadow: inset 0 0 20px #885500; letter-spacing: 4px; }
+        .btn-magic:hover { background: #ffaa00; color: #000; box-shadow: 0 0 40px #ffcc00, inset 0 0 30px #ffeeaa; transform: scale(1.05) translateY(-2px); text-shadow: none; }
+        
+        #hud-status { transition: all 0.3s; max-width: 80%; text-align: center; }
+    </style>
+
+    <script type="importmap">
+        { "imports": { "three": "../lib/three.0.160.0.module.js" } }
+    </script>
+    <script src="../lib/mediapipe/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="../lib/mediapipe/hands.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <video id="input-video" autoplay playsinline muted></video>
+    <div id="dark-overlay"></div>
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div id="intro-panel">
+            <h1 class="text-6xl font-bold text-yellow-500 mb-3 tracking-widest" style="text-shadow: 0 0 30px #ffaa00;">大通灵阵</h1>
+            <h2 class="text-xl text-amber-300 mb-10 tracking-widest" style="text-shadow: 0 0 10px #ff8800;">[ 终极复合·重装构架 ]</h2>
+            <button id="start-btn" class="btn-magic">展开领域</button>
+        </div>
+        <div id="hud-status" class="hidden absolute bottom-10 text-yellow-500 font-bold tracking-widest text-xl" style="background: rgba(10,5,0,0.95); padding: 15px 40px; border: 1px solid #ffaa00; box-shadow: 0 0 30px rgba(255,170,0,0.6); border-radius: 8px;">
+            等待施法者连接...
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const HANDS_DATA = [{ active: false, x: 0.5, y: 0.5, size: 0.2 }, { active: false, x: 0.5, y: 0.5, size: 0.2 }];
+        let scene, camera, renderer, magicCircles = [];
+        const CAMERA_Z = 10;
+        let time = 0;
+
+        // 调整粒子纹理：扩大中心高亮区域，让粒子更“实”，线条显得更粗
+        function getParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            grad.addColorStop(0.4, 'rgba(255, 210, 80, 0.95)'); // 中心高亮区外扩
+            grad.addColorStop(0.8, 'rgba(180, 90, 0, 0.6)');  // 边缘过渡更明显
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- 几何体生成库 ---
+        function createRing(radius, count, jitter = 0) {
+            const pos = [];
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const r = radius + (Math.random() - 0.5) * jitter;
+                pos.push(Math.cos(angle) * r, Math.sin(angle) * r, (Math.random()-0.5)*0.02);
+            }
+            return pos;
+        }
+
+        function createDashedRing(radius, totalParticles, dashCount, dashRatio) {
+            const pos = [];
+            for (let i = 0; i < totalParticles; i++) {
+                const angle = (i / totalParticles) * Math.PI * 2;
+                const segmentPhase = (angle / (Math.PI * 2)) * dashCount;
+                if (segmentPhase - Math.floor(segmentPhase) < dashRatio) {
+                    pos.push(Math.cos(angle) * radius, Math.sin(angle) * radius, 0);
+                }
+            }
+            return pos;
+        }
+
+        function createLine(x1, y1, x2, y2, density) {
+            const pos = [];
+            const dist = Math.hypot(x2 - x1, y2 - y1);
+            const count = Math.floor(dist * density);
+            for (let i = 0; i < count; i++) {
+                const t = i / count;
+                pos.push(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 0);
+            }
+            return pos;
+        }
+
+        function createPolygon(radius, sides, offsetAngle, density) {
+            const pos = [];
+            for (let i = 0; i < sides; i++) {
+                const a1 = offsetAngle + (i / sides) * Math.PI * 2;
+                const a2 = offsetAngle + ((i + 1) / sides) * Math.PI * 2;
+                pos.push(...createLine(Math.cos(a1)*radius, Math.sin(a1)*radius, Math.cos(a2)*radius, Math.sin(a2)*radius, density));
+            }
+            return pos;
+        }
+
+        function createRays(innerR, outerR, rayCount, density) {
+            const pos = [];
+            for(let i=0; i<rayCount; i++) {
+                const angle = (i / rayCount) * Math.PI * 2;
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                pos.push(...createLine(cos*innerR, sin*innerR, cos*outerR, sin*outerR, density));
+            }
+            return pos;
+        }
+
+        function createSpirograph(R, r, d, loops, pointsPerLoop) {
+            const pos = [];
+            const totalPoints = loops * pointsPerLoop;
+            for(let i=0; i<totalPoints; i++) {
+                const theta = (i / pointsPerLoop) * Math.PI * 2;
+                const x = (R - r) * Math.cos(theta) + d * Math.cos(((R - r) / r) * theta);
+                const y = (R - r) * Math.sin(theta) - d * Math.sin(((R - r) / r) * theta);
+                pos.push(x, y, 0);
+            }
+            return pos;
+        }
+
+        function createSpiral(arms, pointsPerArm, radiusLimit, turns) {
+            const pos = [];
+            for(let a = 0; a < arms; a++) {
+                const angleOffset = (a / arms) * Math.PI * 2;
+                for(let i = 0; i < pointsPerArm; i++) {
+                    const t = i / pointsPerArm;
+                    const r = t * radiusLimit;
+                    const theta = angleOffset + t * turns * Math.PI * 2;
+                    const jitter = t * 0.12; 
+                    pos.push(
+                        Math.cos(theta) * r + (Math.random()-0.5)*jitter, 
+                        Math.sin(theta) * r + (Math.random()-0.5)*jitter, 
+                        (Math.random()-0.5)*0.3
+                    );
+                }
+            }
+            return pos;
+        }
+
+        function createDustCloud(radius, count) {
+            const pos = [];
+            for(let i=0; i<count; i++) {
+                const r = radius * Math.cbrt(Math.random()); 
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                pos.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+            }
+            return pos;
+        }
+
+        function buildGeometry(positions) {
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            return geom;
+        }
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = CAMERA_Z;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            const particleTex = getParticleTexture();
+            
+            // --- 关键调整：全面放大粒子尺寸 (size)，实现线条加粗效果 ---
+            // 稍微调低了一点透明度(opacity)，防止尺寸变大后叠加过度导致整个法阵变成全白光斑
+            const matAura     = new THREE.PointsMaterial({ color: 0xcc5500, size: 0.15, map: particleTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.3 });
+            const matDarkGold = new THREE.PointsMaterial({ color: 0xff8800, size: 0.08, map: particleTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.65 });
+            const matGold     = new THREE.PointsMaterial({ color: 0xffcc00, size: 0.07, map: particleTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.8 });
+            const matBright   = new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, map: particleTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 });
+            const matRune     = new THREE.PointsMaterial({ color: 0xffee88, size: 0.10, map: particleTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.75 });
+            const matGhost    = new THREE.PointsMaterial({ color: 0xffaa55, size: 0.04, map: particleTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.45 });
+
+            for(let i=0; i<2; i++) {
+                const group = new THREE.Group();
+                
+                // 14层极致复杂法阵结构
+                const meshAura = new THREE.Points(buildGeometry(createRing(1.6, 2000, 0.2)), matAura);
+                const meshOuterPoly = new THREE.Points(buildGeometry(createPolygon(1.4, 24, 0, 200)), matDarkGold);
+                const meshSpiro = new THREE.Points(buildGeometry(createSpirograph(1.2, 0.15, 0.4, 30, 200)), matGhost);
+                const meshRunesOuter = new THREE.Points(buildGeometry(createDashedRing(1.3, 1500, 36, 0.5)), matRune);
+                const meshRays = new THREE.Points(buildGeometry(createRays(1.15, 1.25, 72, 100)), matBright);
+                const meshMainRing = new THREE.Points(buildGeometry([...createRing(1.15, 2000), ...createRing(1.13, 2000)]), matBright);
+                const meshStar6 = new THREE.Points(buildGeometry([...createPolygon(1.05, 3, -Math.PI/2, 400), ...createPolygon(1.05, 3, Math.PI/6, 400)]), matGold);
+                const meshStar8 = new THREE.Points(buildGeometry([...createPolygon(0.85, 4, 0, 300), ...createPolygon(0.85, 4, Math.PI/4, 300)]), matDarkGold);
+                const meshRunesInner = new THREE.Points(buildGeometry(createDashedRing(0.7, 1000, 12, 0.7)), matRune);
+                
+                const meshGyroX = new THREE.Points(buildGeometry(createDashedRing(0.6, 600, 8, 0.8)), matGold);
+                const meshGyroY = new THREE.Points(buildGeometry(createRing(0.55, 800)), matBright);
+                const meshGyroZ = new THREE.Points(buildGeometry(createDashedRing(0.5, 600, 16, 0.5)), matDarkGold);
+                
+                const meshSpiral = new THREE.Points(buildGeometry(createSpiral(6, 400, 0.4, 2.0)), matBright);
+                const meshCoreDust = new THREE.Points(buildGeometry(createDustCloud(0.2, 1000)), matBright);
+
+                const layers = [
+                    meshAura, meshOuterPoly, meshSpiro, meshRunesOuter, meshRays, meshMainRing, 
+                    meshStar6, meshStar8, meshRunesInner, 
+                    meshGyroX, meshGyroY, meshGyroZ, 
+                    meshSpiral, meshCoreDust
+                ];
+                
+                layers.forEach(layer => group.add(layer));
+                
+                group.visible = false; 
+                scene.add(group); 
+                magicCircles.push(group);
+            }
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01; 
+            const vFov = camera.fov * Math.PI / 180;
+            const viewHeight = 2 * Math.tan(vFov / 2) * CAMERA_Z;
+            const viewWidth = viewHeight * camera.aspect;
+
+            for(let i=0; i<2; i++) {
+                const circle = magicCircles[i];
+                const data = HANDS_DATA[i];
+
+                if(data.active) {
+                    circle.visible = true;
+                    
+                    const targetX = (data.x - 0.5) * viewWidth;
+                    const targetY = -(data.y - 0.5) * viewHeight;
+                    circle.position.x += (targetX - circle.position.x) * 0.15;
+                    circle.position.y += (targetY - circle.position.y) * 0.15;
+                    
+                    const baseScale = data.size * viewHeight * 0.65; 
+                    const pulse = 1.0 + Math.sin(time * 6) * 0.02; 
+                    const finalScale = baseScale * pulse;
+                    circle.scale.lerp(new THREE.Vector3(finalScale, finalScale, 1), 0.2);
+
+                    // 旋转矩阵
+                    circle.children[0].rotation.z = time * 0.05;   
+                    circle.children[1].rotation.z = -time * 0.1;   
+                    circle.children[2].rotation.z = time * 0.15;   
+                    circle.children[3].rotation.z = time * 0.3;    
+                    circle.children[4].rotation.z = -time * 0.2;   
+                    circle.children[5].rotation.z = -time * 0.2;   
+                    circle.children[6].rotation.z = time * 0.25;   
+                    circle.children[7].rotation.z = -time * 0.35;  
+                    circle.children[8].rotation.z = time * 0.5;    
+                    
+                    circle.children[9].rotation.x = time * 1.2;
+                    circle.children[9].rotation.y = time * 0.8;
+                    circle.children[10].rotation.y = -time * 1.5;
+                    circle.children[10].rotation.z = time * 1.0;
+                    circle.children[11].rotation.x = -time * 1.0;
+                    circle.children[11].rotation.z = -time * 1.8;
+
+                    circle.children[12].rotation.z = -time * 2.0; 
+                    
+                    circle.rotation.x = Math.sin(time * 0.8) * 0.25; 
+                    circle.rotation.y = Math.cos(time * 1.1) * 0.25;
+                } else {
+                    circle.scale.lerp(new THREE.Vector3(0.01, 0.01, 1), 0.15);
+                    if(circle.scale.x < 0.05) circle.visible = false;
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function updateHUD(text, color = "#ffaa00") {
+            const hud = document.getElementById('hud-status');
+            hud.innerText = text;
+            hud.style.color = color;
+            hud.style.borderColor = color;
+            hud.style.boxShadow = `0 0 30px ${color}88`; 
+        }
+
+        async function startSystem() {
+            document.getElementById('intro-panel').style.display = 'none';
+            const hud = document.getElementById('hud-status');
+            hud.classList.remove('hidden');
+            updateHUD("正在解析高维空间坐标...", "#ffaa00");
+
+            try {
+                initThree();
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("请在本地服务器(Live Server)或 HTTPS 环境下运行本页面！");
+                }
+
+                updateHUD("请求视觉权限中 (请在弹窗点允许)...", "#ffaa00");
+                const videoElement = document.getElementById('input-video');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 }});
+                videoElement.srcObject = stream;
+                await new Promise(resolve => videoElement.onloadedmetadata = resolve);
+                videoElement.play();
+
+                updateHUD("下载圣金粒子引擎中 (资源包较大，请耐心等待 10-20 秒)...", "#ffcc00");
+                const hands = new Hands({locateFile: (file) => ({"hands.binarypb": "../lib/mediapipe/hands/hands.binarypb", "hands_solution_packed_assets_loader.js": "../lib/mediapipe/hands/hands_solution_packed_assets_loader.js", "hands_solution_packed_assets.data": "../lib/mediapipe/hands/hands_solution_packed_assets.data", "hands_solution_simd_wasm_bin.js": "../lib/mediapipe/hands/hands_solution_simd_wasm_bin.js", "hands_solution_wasm_bin.js": "../lib/mediapipe/hands/hands_solution_wasm_bin.js", "hands_solution_simd_wasm_bin.wasm": "../lib/mediapipe/hands/hands_solution_simd_wasm_bin.wasm", "hands_solution_wasm_bin.wasm": "../lib/mediapipe/hands/hands_solution_wasm_bin.wasm", "hand_landmark_full.tflite": "../lib/mediapipe/hands/hand_landmark_full.tflite", "hand_landmark_lite.tflite": "../lib/mediapipe/hands/hand_landmark_lite.tflite"})[file] || file});
+                hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+
+                hands.onResults((results) => {
+                    HANDS_DATA.forEach(h => h.active = false);
+
+                    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                        updateHUD(`共鸣完毕 (已锁定 ${results.multiHandLandmarks.length} 个引力点)`, "#00ff88");
+                        
+                        results.multiHandLandmarks.forEach((landmarks, index) => {
+                            if (index < 2) {
+                                const wrist = landmarks[0];
+                                const middleBase = landmarks[9];
+                                const middleTip = landmarks[12];
+                                
+                                HANDS_DATA[index].active = true;
+                                HANDS_DATA[index].x = 1.0 - (wrist.x + middleBase.x) / 2;
+                                HANDS_DATA[index].y = (wrist.y + middleBase.y) / 2;
+                                const dx = wrist.x - middleTip.x;
+                                const dy = wrist.y - middleTip.y;
+                                HANDS_DATA[index].size = Math.sqrt(dx*dx + dy*dy);
+                            }
+                        });
+                    } else {
+                        updateHUD("领域游离 (未检测到施法者)", "#ff5500");
+                    }
+                });
+
+                const cameraUtils = new Camera(videoElement, {
+                    onFrame: async () => { await hands.send({ image: videoElement }); },
+                    width: 1280, height: 720
+                });
+                await cameraUtils.start();
+
+            } catch (err) {
+                console.error(err);
+                updateHUD(`❌ 领域崩溃: ${err.message}`, "#ff0000");
+            }
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startSystem);
+
+        window.addEventListener('resize', () => {
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+    </script>
+</body>
+</html>
