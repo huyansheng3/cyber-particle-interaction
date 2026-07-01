@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#050510"/>
+      <stop offset="0.5" stop-color="#071a2f"/>
+      <stop offset="1" stop-color="#24061f"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="28%" cy="26%" r="44%">
+      <stop offset="0" stop-color="#28e7ff" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#28e7ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="78%" cy="22%" r="42%">
+      <stop offset="0" stop-color="#ff4fd8" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#ff4fd8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow1)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+  <g opacity="0.78">
+    <circle cx="148" cy="116" r="4" fill="#28e7ff"/>
+    <circle cx="252" cy="500" r="3" fill="#ff4fd8"/>
+    <circle cx="972" cy="122" r="4" fill="#ffd166"/>
+    <circle cx="1050" cy="486" r="3" fill="#28e7ff"/>
+    <circle cx="710" cy="84" r="2" fill="#ffffff"/>
+    <circle cx="430" cy="548" r="2" fill="#ffffff"/>
+    <path d="M148 116 306 194 498 150 710 84 972 122" fill="none" stroke="#28e7ff" stroke-opacity="0.22" stroke-width="2"/>
+    <path d="M252 500 430 548 680 480 888 532 1050 486" fill="none" stroke="#ff4fd8" stroke-opacity="0.2" stroke-width="2"/>
+  </g>
+  <rect x="72" y="70" width="1056" height="490" rx="18" fill="none" stroke="#28e7ff" stroke-opacity="0.34" stroke-width="3"/>
+  <text x="110" y="155" fill="#28e7ff" font-family="Arial, 'PingFang SC', sans-serif" font-size="28" letter-spacing="8">CYBER PARTICLE INTERACTIVE</text>
+  <text x="110" y="285" fill="#ffffff" font-family="Arial, 'PingFang SC', sans-serif" font-size="78" font-weight="800">赛博粒子交互</text>
+  <text x="114" y="366" fill="#eef6ff" fill-opacity="0.82" font-family="Arial, 'PingFang SC', sans-serif" font-size="34">在线互动特效工具站</text>
+  <text x="114" y="430" fill="#eef6ff" fill-opacity="0.66" font-family="Arial, 'PingFang SC', sans-serif" font-size="26">告白祝福 · 节日卡片 · 赛博小游戏 · 魔法阵 · 手势粒子</text>
+  <g transform="translate(900 300)">
+    <circle r="86" fill="none" stroke="#ffd166" stroke-opacity="0.72" stroke-width="5"/>
+    <circle r="46" fill="none" stroke="#28e7ff" stroke-opacity="0.82" stroke-width="4"/>
+    <circle r="12" fill="#ff4fd8"/>
+    <path d="M0 -116V-86M0 86v30M-116 0h30M86 0h30M-82 -82l22 22M60 60l22 22M82 -82 60 -60M-60 60l-22 22" stroke="#ffffff" stroke-opacity="0.68" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

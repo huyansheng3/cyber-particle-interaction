@@ -50,6 +50,27 @@ Keep ads away from:
 When AdSense is approved, replace `.cpi-ad-slot` content with responsive ad units.
 Do not ask users to click ads or visually disguise ads as controls.
 
+## Analytics
+
+The site currently records a small local event buffer in `localStorage`.
+It also has a disabled beacon hook in `assets/site-enhance.js`:
+
+```js
+analyticsEndpoint: ""
+```
+
+To connect a real analytics collector, set this to an HTTPS endpoint that accepts
+JSON events. The script sends:
+
+- `page_view`
+- `share_copy`
+- `share_native`
+- `share_social`
+- `share_card_download`
+
+Keep analytics privacy-friendly. Do not collect names, phone numbers, addresses,
+or camera images.
+
 ## Traffic Ideas
 
 - Create seasonal landing copies for 520, Qixi, birthday, Christmas, New Year.

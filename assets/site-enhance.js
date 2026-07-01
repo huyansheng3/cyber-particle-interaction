@@ -78,7 +78,8 @@
     name: "Cyber Particle Interactive",
     cnName: "赛博粒子交互",
     description: "在线互动特效工具站，提供告白祝福、赛博小游戏、手势粒子、魔法阵和剑阵视觉模板。",
-    baseUrl: "https://huyansheng3.github.io/cyber-particle-interaction/"
+    baseUrl: "https://huyansheng3.github.io/cyber-particle-interaction/",
+    analyticsEndpoint: ""
   };
 
   function depthPrefix() {
@@ -130,9 +131,11 @@
     addMeta("og:type", "website", "property");
     addMeta("og:site_name", site.cnName, "property");
     addMeta("og:url", window.location.href.split("#")[0], "property");
+    addMeta("og:image", absoluteUrl("assets/og-image.svg"), "property");
     addMeta("twitter:card", "summary_large_image");
     addMeta("twitter:title", title);
     addMeta("twitter:description", desc);
+    addMeta("twitter:image", absoluteUrl("assets/og-image.svg"));
     addLink("canonical", window.location.href.split("?")[0].split("#")[0]);
 
     const jsonLd = document.createElement("script");
@@ -186,8 +189,10 @@
     try {
       await navigator.clipboard.writeText(text);
       toast("链接已复制");
+      track("share_copy", { target: "clipboard" });
     } catch (err) {
       window.prompt("复制这个链接", text);
+      track("share_copy", { target: "prompt" });
     }
   }
 
@@ -207,16 +212,19 @@
       shareUrl.searchParams.set("url", url);
       shareUrl.searchParams.set("title", `${document.title} - ${currentPage.desc}`);
       window.open(shareUrl.toString(), "_blank", "noopener,noreferrer");
+      track("share_social", { target });
       return;
     }
     if (target === "wechat") {
       copy(url);
       toast("链接已复制，可粘贴到微信发送");
+      track("share_social", { target });
       return;
     }
     if (target === "xiaohongshu") {
       copy(text);
       toast("文案已复制，可粘贴到小红书发布");
+      track("share_social", { target });
     }
   }
 
@@ -273,6 +281,7 @@
     a.download = `${currentPage.path.replace(/[\/.]/g, "-")}-share-card.png`;
     a.href = canvas.toDataURL("image/png");
     a.click();
+    track("share_card_download", { page: currentPage.path });
     toast("分享图已生成");
   }
 
@@ -339,8 +348,10 @@
       const url = buildShareUrl();
       if (navigator.share) {
         await navigator.share({ title: document.title, text: currentPage.desc, url });
+        track("share_native", { supported: true });
       } else {
         copy(url);
+        track("share_native", { supported: false });
       }
     });
     panel.querySelector("[data-cpi-shot]").addEventListener("click", downloadShareCard);
@@ -387,13 +398,15 @@
     document.body.appendChild(section);
   }
 
-  function track() {
+  function track(type, detail) {
     const key = "cpi-analytics";
     const event = {
+      type: type || "page_view",
       path: window.location.pathname,
       title: document.title,
       ts: Date.now(),
-      referrer: document.referrer || ""
+      referrer: document.referrer || "",
+      detail: detail || {}
     };
     try {
       const old = JSON.parse(localStorage.getItem(key) || "[]").slice(-49);
@@ -404,6 +417,10 @@
     }
     window.cpiAnalytics = window.cpiAnalytics || [];
     window.cpiAnalytics.push(event);
+    if (site.analyticsEndpoint && navigator.sendBeacon) {
+      const body = JSON.stringify(event);
+      navigator.sendBeacon(site.analyticsEndpoint, new Blob([body], { type: "application/json" }));
+    }
   }
 
   function init() {
