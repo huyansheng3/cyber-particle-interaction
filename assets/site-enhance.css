@@ -131,8 +131,16 @@
   margin-top: 12px;
 }
 
+.cpi-social-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .cpi-share-actions button,
-.cpi-share-actions a {
+.cpi-share-actions a,
+.cpi-social-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -147,8 +155,14 @@
 }
 
 .cpi-share-actions button:hover,
-.cpi-share-actions a:hover {
+.cpi-share-actions a:hover,
+.cpi-social-actions button:hover {
   background: rgba(40, 231, 255, 0.22);
+}
+
+.cpi-social-actions button {
+  border-color: rgba(255, 79, 216, 0.34);
+  background: rgba(255, 79, 216, 0.1);
 }
 
 .cpi-toast {

@@ -191,6 +191,108 @@
     }
   }
 
+  function escapeAttr(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function openShareTarget(target) {
+    const url = buildShareUrl();
+    const text = `${document.title} ${url}`;
+    if (target === "weibo") {
+      const shareUrl = new URL("https://service.weibo.com/share/share.php");
+      shareUrl.searchParams.set("url", url);
+      shareUrl.searchParams.set("title", `${document.title} - ${currentPage.desc}`);
+      window.open(shareUrl.toString(), "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (target === "wechat") {
+      copy(url);
+      toast("链接已复制，可粘贴到微信发送");
+      return;
+    }
+    if (target === "xiaohongshu") {
+      copy(text);
+      toast("文案已复制，可粘贴到小红书发布");
+    }
+  }
+
+  function downloadShareCard() {
+    const url = buildShareUrl();
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = 1440;
+    const ctx = canvas.getContext("2d");
+    const gradient = ctx.createLinearGradient(0, 0, 1080, 1440);
+    gradient.addColorStop(0, "#050510");
+    gradient.addColorStop(0.45, "#081530");
+    gradient.addColorStop(1, "#24061f");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < 220; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      const r = Math.random() * 2.6 + 0.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = i % 3 === 0 ? "rgba(40,231,255,.62)" : (i % 3 === 1 ? "rgba(255,79,216,.52)" : "rgba(255,209,102,.48)");
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = "rgba(40,231,255,.34)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(64, 64, 952, 1312);
+
+    ctx.fillStyle = "#28e7ff";
+    ctx.font = "36px sans-serif";
+    ctx.fillText(site.cnName, 96, 140);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 76px sans-serif";
+    wrapText(ctx, currentPage.title, 96, 290, 888, 92);
+
+    const to = document.querySelector("#cpi-share-to")?.value.trim() || params.get("to");
+    const msg = document.querySelector("#cpi-share-msg")?.value.trim() || params.get("msg") || currentPage.desc;
+    ctx.fillStyle = "rgba(238,246,255,.82)";
+    ctx.font = "40px sans-serif";
+    wrapText(ctx, [to ? `To ${to}` : "", msg].filter(Boolean).join("  "), 96, 540, 888, 58);
+
+    ctx.fillStyle = "rgba(255,255,255,.72)";
+    ctx.font = "30px sans-serif";
+    wrapText(ctx, "打开链接，体验这个可互动的粒子特效页面。", 96, 1050, 888, 44);
+
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "28px monospace";
+    wrapText(ctx, url, 96, 1180, 888, 38);
+
+    const a = document.createElement("a");
+    a.download = `${currentPage.path.replace(/[\/.]/g, "-")}-share-card.png`;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+    toast("分享图已生成");
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const chars = String(text).split("");
+    let line = "";
+    let currentY = y;
+    for (const char of chars) {
+      const test = line + char;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, currentY);
+        line = char;
+        currentY += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    if (line) ctx.fillText(line, x, currentY);
+  }
+
   function addTopbar() {
     if (!currentPage || document.querySelector(".cpi-topbar")) return;
     const bar = document.createElement("div");
@@ -209,17 +311,22 @@
       <p class="cpi-share-desc">填写名字和祝福语，复制链接发给朋友。对方打开后会看到你的定制文字。</p>
       <div class="cpi-share-field">
         <label for="cpi-share-to">名字</label>
-        <input id="cpi-share-to" maxlength="24" value="${params.get("to") || ""}" placeholder="例如 小鹿">
+        <input id="cpi-share-to" maxlength="24" value="${escapeAttr(params.get("to"))}" placeholder="例如 小鹿">
       </div>
       <div class="cpi-share-field">
         <label for="cpi-share-msg">祝福语</label>
-        <input id="cpi-share-msg" maxlength="64" value="${params.get("msg") || ""}" placeholder="愿你的今天像粒子烟花一样发光">
+        <input id="cpi-share-msg" maxlength="64" value="${escapeAttr(params.get("msg"))}" placeholder="愿你的今天像粒子烟花一样发光">
       </div>
       <div class="cpi-share-actions">
         <button type="button" data-cpi-copy>复制链接</button>
         <button type="button" data-cpi-native>系统分享</button>
-        <button type="button" data-cpi-shot>保存截图</button>
+        <button type="button" data-cpi-shot>保存分享图</button>
         <a href="${prefix}index.html">更多模板</a>
+      </div>
+      <div class="cpi-social-actions">
+        <button type="button" data-cpi-social="wechat">微信</button>
+        <button type="button" data-cpi-social="xiaohongshu">小红书</button>
+        <button type="button" data-cpi-social="weibo">微博</button>
       </div>
     `;
     document.body.appendChild(panel);
@@ -236,8 +343,9 @@
         copy(url);
       }
     });
-    panel.querySelector("[data-cpi-shot]").addEventListener("click", () => {
-      toast("截图请使用系统截屏；后续可接入自动生成海报");
+    panel.querySelector("[data-cpi-shot]").addEventListener("click", downloadShareCard);
+    panel.querySelectorAll("[data-cpi-social]").forEach((button) => {
+      button.addEventListener("click", () => openShareTarget(button.dataset.cpiSocial));
     });
   }
 
