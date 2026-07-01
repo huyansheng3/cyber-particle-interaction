@@ -3,17 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>赛博粒子交互 · 作品集</title>
+<title>赛博粒子交互 - 在线互动特效工具站</title>
+<meta name="description" content="赛博粒子交互是一个在线互动特效工具站，提供告白祝福生成器、节日互动卡片、赛博小游戏、手势粒子、魔法阵和剑阵视觉模板。">
+<meta name="keywords" content="互动特效,粒子特效,告白网页,祝福生成器,节日祝福,赛博朋克小游戏,手势识别,魔法阵,剑阵特效">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#050510">
+<meta property="og:title" content="赛博粒子交互 - 在线互动特效工具站">
+<meta property="og:description" content="生成可分享的告白祝福、节日卡片、赛博小游戏和沉浸式粒子特效。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="赛博粒子交互">
+<meta property="og:url" content="https://huyansheng3.github.io/cyber-particle-interaction/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://huyansheng3.github.io/cyber-particle-interaction/">
+<link rel="stylesheet" href="assets/site-enhance.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "赛博粒子交互",
+  "alternateName": "Cyber Particle Interactive",
+  "url": "https://huyansheng3.github.io/cyber-particle-interaction/",
+  "description": "在线互动特效工具站，提供告白祝福、节日卡片、赛博小游戏、手势粒子、魔法阵和剑阵视觉模板。",
+  "inLanguage": ["zh-CN", "en"]
+}
+</script>
 <style>
   :root {
     --cyan: #00f5ff;
-    --magenta: #ff00ff;
+    --magenta: #ff4fd8;
     --purple: #7b2fff;
+    --gold: #ffd166;
+    --green: #00ff80;
     --dark: #050510;
     --card-bg: rgba(10, 10, 30, 0.85);
     --border: rgba(0, 245, 255, 0.25);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     background: var(--dark);
     color: #e0e0ff;
@@ -21,8 +47,6 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-
-  /* 粒子 canvas 背景 */
   #bg-canvas {
     position: fixed;
     top: 0; left: 0;
@@ -30,81 +54,153 @@
     z-index: 0;
     pointer-events: none;
   }
-
-  /* 页面内容 */
   .page { position: relative; z-index: 1; }
-
-  /* 顶部 header */
-  header {
-    text-align: center;
-    padding: 60px 20px 40px;
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 40px;
+    border-bottom: 1px solid rgba(0,245,255,0.1);
+    background: rgba(5, 5, 16, 0.72);
+    backdrop-filter: blur(16px);
   }
-  header .title {
-    font-size: clamp(2rem, 5vw, 3.5rem);
+  .brand {
+    color: #fff;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+  }
+  .nav-links {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .nav-links a {
+    color: rgba(224,224,255,0.74);
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .nav-links a:hover { color: var(--cyan); }
+  header {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 82px 40px 50px;
+  }
+  .eyebrow {
+    color: var(--cyan);
+    font-size: 13px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  h1 {
+    max-width: 900px;
+    font-size: clamp(2.4rem, 7vw, 5.6rem);
+    line-height: 1.02;
     font-weight: 900;
-    letter-spacing: 0.1em;
-    background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--purple));
+    letter-spacing: 0;
+    background: linear-gradient(90deg, #ffffff, var(--cyan), var(--magenta));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: none;
     animation: titleGlow 3s ease-in-out infinite alternate;
   }
   @keyframes titleGlow {
-    from { filter: drop-shadow(0 0 8px rgba(0,245,255,0.4)); }
-    to   { filter: drop-shadow(0 0 20px rgba(255,0,255,0.6)); }
+    from { filter: drop-shadow(0 0 8px rgba(0,245,255,0.28)); }
+    to   { filter: drop-shadow(0 0 22px rgba(255,79,216,0.4)); }
   }
-  header .subtitle {
-    margin-top: 12px;
-    font-size: 1rem;
-    color: rgba(160,160,220,0.7);
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
+  .lead {
+    max-width: 760px;
+    margin-top: 22px;
+    color: rgba(224,224,255,0.76);
+    font-size: 18px;
+    line-height: 1.8;
   }
-  .scan-line {
-    width: 200px;
-    height: 2px;
-    margin: 24px auto 0;
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-    animation: scanPulse 2s ease-in-out infinite;
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 28px;
   }
-  @keyframes scanPulse {
-    0%, 100% { opacity: 0.4; transform: scaleX(0.6); }
-    50%       { opacity: 1;   transform: scaleX(1); }
+  .hero-actions a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,245,255,0.34);
+    color: #fff;
+    background: rgba(0,245,255,0.11);
+    text-decoration: none;
   }
-
-  /* 分类标题 */
+  .hero-actions a.secondary {
+    border-color: rgba(255,79,216,0.34);
+    background: rgba(255,79,216,0.1);
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    max-width: 760px;
+    margin-top: 34px;
+  }
+  .stat {
+    min-height: 88px;
+    padding: 16px;
+    border: 1px solid rgba(0,245,255,0.14);
+    border-radius: 8px;
+    background: rgba(10, 10, 30, 0.52);
+  }
+  .stat strong {
+    display: block;
+    color: #fff;
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+  .stat span {
+    color: rgba(224,224,255,0.64);
+    font-size: 13px;
+    line-height: 1.5;
+  }
   .section {
-    padding: 20px 40px 0;
+    padding: 26px 40px 0;
     max-width: 1400px;
     margin: 0 auto;
   }
   .section-title {
-    font-size: 0.8rem;
-    letter-spacing: 0.4em;
+    font-size: 0.82rem;
+    letter-spacing: 0.32em;
     text-transform: uppercase;
     color: var(--cyan);
     padding-left: 12px;
     border-left: 3px solid var(--cyan);
-    margin-bottom: 20px;
-    opacity: 0.8;
+    margin-bottom: 10px;
+    opacity: 0.9;
   }
-
-  /* 卡片网格 */
+  .section-desc {
+    max-width: 760px;
+    color: rgba(224,224,255,0.58);
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 18px;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
-    padding: 0 40px 40px;
+    padding: 0 40px 34px;
     max-width: 1400px;
     margin: 0 auto;
   }
-
-  /* 单张卡片 */
   .card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
@@ -117,25 +213,22 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(0,245,255,0.04) 0%, rgba(255,0,255,0.04) 100%);
+    background: linear-gradient(135deg, rgba(0,245,255,0.04) 0%, rgba(255,79,216,0.04) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
-    border-radius: 12px;
   }
   .card:hover {
-    transform: translateY(-6px) scale(1.02);
+    transform: translateY(-6px);
     box-shadow: 0 0 30px rgba(0,245,255,0.2), 0 0 60px rgba(123,47,255,0.15);
     border-color: rgba(0,245,255,0.6);
   }
   .card:hover::before { opacity: 1; }
-
-  /* 卡片图标区 */
   .card-icon {
-    height: 120px;
+    height: 118px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3.5rem;
+    font-size: 3.1rem;
     position: relative;
     overflow: hidden;
   }
@@ -146,11 +239,7 @@
     background: radial-gradient(ellipse at center, rgba(0,245,255,0.1) 0%, transparent 70%);
     pointer-events: none;
   }
-
-  /* 卡片内容 */
-  .card-body {
-    padding: 16px 20px 20px;
-  }
+  .card-body { padding: 16px 20px 20px; }
   .card-tag {
     display: inline-block;
     font-size: 0.65rem;
@@ -161,16 +250,16 @@
     margin-bottom: 8px;
   }
   .card-name {
-    font-size: 1.05rem;
+    font-size: 1.06rem;
     font-weight: 700;
-    color: #d0d8ff;
+    color: #f3f6ff;
     margin-bottom: 6px;
     line-height: 1.4;
   }
   .card-desc {
-    font-size: 0.8rem;
-    color: rgba(160,160,220,0.6);
-    line-height: 1.5;
+    font-size: 0.82rem;
+    color: rgba(190,205,245,0.66);
+    line-height: 1.6;
     margin-bottom: 14px;
   }
   .card-btn {
@@ -178,198 +267,261 @@
     align-items: center;
     gap: 6px;
     font-size: 0.75rem;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 7px 16px;
+    padding: 7px 14px;
     border-radius: 6px;
     border: 1px solid currentColor;
     transition: background 0.25s, color 0.25s;
   }
-  .card:hover .card-btn {
-    background: currentColor;
-    color: #050510;
-  }
-
-  /* 标签 & 按钮颜色主题 */
-  .theme-cyan .card-tag   { background: rgba(0,245,255,0.12); color: var(--cyan); border: 1px solid rgba(0,245,255,0.3); }
-  .theme-cyan .card-btn   { color: var(--cyan); }
-  .theme-magenta .card-tag { background: rgba(255,0,255,0.12); color: var(--magenta); border: 1px solid rgba(255,0,255,0.3); }
+  .card:hover .card-btn { background: currentColor; color: #050510; }
+  .theme-cyan .card-tag { background: rgba(0,245,255,0.12); color: var(--cyan); border: 1px solid rgba(0,245,255,0.3); }
+  .theme-cyan .card-btn { color: var(--cyan); }
+  .theme-magenta .card-tag { background: rgba(255,79,216,0.12); color: var(--magenta); border: 1px solid rgba(255,79,216,0.3); }
   .theme-magenta .card-btn { color: var(--magenta); }
-  .theme-purple .card-tag  { background: rgba(123,47,255,0.15); color: #b07fff; border: 1px solid rgba(123,47,255,0.4); }
-  .theme-purple .card-btn  { color: #b07fff; }
-  .theme-gold .card-tag    { background: rgba(255,200,0,0.12); color: #ffd700; border: 1px solid rgba(255,200,0,0.3); }
-  .theme-gold .card-btn    { color: #ffd700; }
-  .theme-green .card-tag   { background: rgba(0,255,128,0.12); color: #00ff80; border: 1px solid rgba(0,255,128,0.3); }
-  .theme-green .card-btn   { color: #00ff80; }
-
-  /* footer */
+  .theme-purple .card-tag { background: rgba(123,47,255,0.15); color: #b07fff; border: 1px solid rgba(123,47,255,0.4); }
+  .theme-purple .card-btn { color: #b07fff; }
+  .theme-gold .card-tag { background: rgba(255,209,102,0.12); color: var(--gold); border: 1px solid rgba(255,209,102,0.32); }
+  .theme-gold .card-btn { color: var(--gold); }
+  .theme-green .card-tag { background: rgba(0,255,128,0.12); color: var(--green); border: 1px solid rgba(0,255,128,0.3); }
+  .theme-green .card-btn { color: var(--green); }
+  .guide {
+    max-width: 1180px;
+    margin: 0 auto 34px;
+    padding: 0 40px;
+  }
+  .guide-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+  .guide-card {
+    padding: 18px;
+    border: 1px solid rgba(0,245,255,0.14);
+    border-radius: 8px;
+    background: rgba(10,10,30,0.54);
+  }
+  .guide-card h2 {
+    color: #fff;
+    font-size: 17px;
+    margin-bottom: 8px;
+  }
+  .guide-card p {
+    color: rgba(224,224,255,0.64);
+    font-size: 13px;
+    line-height: 1.75;
+  }
   footer {
     text-align: center;
     padding: 30px;
     font-size: 0.75rem;
-    color: rgba(100,100,160,0.5);
-    letter-spacing: 0.2em;
+    color: rgba(150,160,210,0.54);
+    letter-spacing: 0.16em;
     border-top: 1px solid rgba(0,245,255,0.08);
     margin-top: 20px;
   }
+  @media (max-width: 760px) {
+    .nav { padding: 12px 18px; align-items: flex-start; }
+    .nav-links { gap: 10px; }
+    header { padding: 64px 20px 38px; }
+    .lead { font-size: 16px; }
+    .stats, .guide-inner { grid-template-columns: 1fr; }
+    .section, .grid, .guide { padding-left: 20px; padding-right: 20px; }
+  }
 </style>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
 
 <canvas id="bg-canvas"></canvas>
 
 <div class="page">
+  <nav class="nav">
+    <a class="brand" href="index.html">Cyber Particle</a>
+    <div class="nav-links">
+      <a href="#blessing">祝福生成</a>
+      <a href="#games">小游戏</a>
+      <a href="#effects">视觉特效</a>
+      <a href="#guide">玩法</a>
+    </div>
+  </nav>
+
   <header>
-    <div class="title">赛博粒子交互</div>
-    <div class="subtitle">Cyber Particle Interactive · Works</div>
-    <div class="scan-line"></div>
+    <div class="eyebrow">Interactive Effects Toolkit</div>
+    <h1>赛博粒子交互</h1>
+    <p class="lead">在线互动特效工具站。选择一个模板，生成可分享的告白祝福、节日卡片、赛博小游戏或沉浸式粒子视觉，让一个链接带着你的文字和情绪发光。</p>
+    <div class="hero-actions">
+      <a href="confession-heart.html">制作告白链接</a>
+      <a class="secondary" href="cyber-snake.html">挑战赛博小游戏</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><strong>12</strong><span>个在线互动模板，覆盖祝福、游戏、手势和视觉背景。</span></div>
+      <div class="stat"><strong>0</strong><span>无需安装，浏览器直接打开，手机和电脑都可体验。</span></div>
+      <div class="stat"><strong>Share</strong><span>体验页支持定制文字、复制链接和系统分享。</span></div>
+    </div>
   </header>
 
-  <!-- 节日祝福 -->
-  <div class="section">
-    <div class="section-title">节日祝福</div>
-  </div>
+  <div class="cpi-ad-slot">广告位预留：通过 AdSense 审核后可放置首页横幅广告</div>
+
+  <section class="section" id="blessing">
+    <div class="section-title">节日祝福与告白生成器</div>
+    <p class="section-desc">适合 520、七夕、生日、纪念日、圣诞和新年。打开模板后点击分享按钮，填写名字和祝福语，即可生成专属链接。</p>
+  </section>
   <div class="grid">
     <a class="card theme-magenta" href="love-520.html">
       <div class="card-icon" style="background: linear-gradient(135deg, #1a0020, #300010);">💕</div>
       <div class="card-body">
         <span class="card-tag">浪漫</span>
-        <div class="card-name">520 · I Love You</div>
-        <div class="card-desc">浪漫粒子烟花，献上你的爱意</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-name">520 告白粒子烟花</div>
+        <div class="card-desc">用粒子烟花做一张会动的告白卡片，生成链接发给喜欢的人。</div>
+        <span class="card-btn">开始制作</span>
       </div>
     </a>
     <a class="card theme-magenta" href="confession-heart.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #200015, #100030);">🫀</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #200015, #100030);">♡</div>
       <div class="card-body">
         <span class="card-tag">告白</span>
         <div class="card-name">爱心告白神器 · 丝绸版</div>
-        <div class="card-desc">手势控制丝绸爱心，AI 实时手势追踪</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-desc">手势控制丝绸爱心，适合告白、纪念日和惊喜链接。</div>
+        <span class="card-btn">生成链接</span>
       </div>
     </a>
     <a class="card theme-cyan" href="holiday-tree.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #001520, #001000);">🎄</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #001520, #001000);">✦</div>
       <div class="card-body">
         <span class="card-tag">节日</span>
-        <div class="card-name">Magic Holiday · 新春圣诞树</div>
-        <div class="card-desc">支持自定义文字，手势互动节日特效</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-name">新年圣诞祝福树</div>
+        <div class="card-desc">支持自定义祝福文字，适合节日问候、群发祝福和朋友圈分享。</div>
+        <span class="card-btn">定制祝福</span>
       </div>
     </a>
   </div>
 
-  <!-- 互动游戏 -->
-  <div class="section">
+  <section class="section" id="games">
     <div class="section-title">互动游戏</div>
-  </div>
+    <p class="section-desc">轻量小游戏适合做每日挑战、分数分享和朋友之间的转发入口。</p>
+  </section>
   <div class="grid">
     <a class="card theme-green" href="cyber-snake.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #001500, #002010);">🐉</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #001500, #002010);">◆</div>
       <div class="card-body">
         <span class="card-tag">游戏</span>
-        <div class="card-name">CYBER DRAGON · 全息贪吃蛇</div>
-        <div class="card-desc">赛博朋克风格全息贪吃蛇，手势操控</div>
-        <span class="card-btn">开始游戏 →</span>
+        <div class="card-name">赛博龙 · 全息贪吃蛇</div>
+        <div class="card-desc">赛博朋克风格全息贪吃蛇，适合挑战高分和分享给朋友。</div>
+        <span class="card-btn">开始游戏</span>
       </div>
     </a>
-  </div>
-
-  <!-- 像素艺术 -->
-  <div class="section">
-    <div class="section-title">像素艺术</div>
-  </div>
-  <div class="grid">
     <a class="card theme-magenta" href="pixel-cat-neon.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #1a0030, #300020);">🐱</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #1a0030, #300020);">▣</div>
       <div class="card-body">
         <span class="card-tag">像素</span>
-        <div class="card-name">像素小猫 · 霓虹舞池</div>
-        <div class="card-desc">赛博霓虹像素小猫动态场景</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-name">霓虹像素小猫</div>
+        <div class="card-desc">赛博霓虹像素小猫动态场景，适合作为轻松可爱的视觉模板。</div>
+        <span class="card-btn">进入舞池</span>
       </div>
     </a>
   </div>
 
-  <!-- 剑阵特效 -->
-  <div class="section">
-    <div class="section-title">青竹蜂云剑 · 剑阵特效</div>
-  </div>
+  <div class="cpi-ad-slot">广告位预留：分类内容之间的原生广告或赞助位</div>
+
+  <section class="section" id="effects">
+    <div class="section-title">手势粒子与玄幻视觉特效</div>
+    <p class="section-desc">魔法阵、剑阵、粒子梦境等视觉模板适合做互动展示、直播背景、短视频素材预览和创意实验。</p>
+  </section>
   <div class="grid">
+    <a class="card theme-cyan" href="particle-dream.html">
+      <div class="card-icon" style="background: linear-gradient(135deg, #001520, #001a30);">✺</div>
+      <div class="card-body">
+        <span class="card-tag">手势</span>
+        <div class="card-name">3D 粒子手势交互</div>
+        <div class="card-desc">双指旋钮操控粒子系统，适合沉浸式互动展示。</div>
+        <span class="card-btn">体验手势</span>
+      </div>
+    </a>
     <a class="card theme-purple" href="daigeng/sword-array-star.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #0a0020, #150030);">⚔️</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #0a0020, #150030);">⚔</div>
       <div class="card-body">
         <span class="card-tag">剑阵</span>
-        <div class="card-name">青竹蜂云剑 · 深邃星空版</div>
-        <div class="card-desc">深邃星空增强版剑阵特效</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-name">青竹蜂云剑 · 星空阵</div>
+        <div class="card-desc">深邃星空增强版剑阵特效，适合玄幻视觉展示。</div>
+        <span class="card-btn">进入剑阵</span>
       </div>
     </a>
     <a class="card theme-purple" href="daigeng/sword-split-sky.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #0a0015, #200025);">🗡️</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #0a0015, #200025);">⌁</div>
       <div class="card-body">
-        <span class="card-tag">剑阵</span>
+        <span class="card-tag">剑气</span>
         <div class="card-name">大庚裂空斩</div>
-        <div class="card-desc">凡人修仙传大场面还原版</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-desc">凡人修仙传大场面还原版，适合做强视觉冲击入口。</div>
+        <span class="card-btn">触发特效</span>
       </div>
     </a>
     <a class="card theme-purple" href="daigeng/sword-all-return.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #050025, #100020);">✴️</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #050025, #100020);">✴</div>
       <div class="card-body">
         <span class="card-tag">剑阵</span>
         <div class="card-name">大庚万剑归宗</div>
-        <div class="card-desc">终极玄幻版，手势触发万剑归宗</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-desc">终极玄幻版，手势触发万剑归宗。</div>
+        <span class="card-btn">召唤万剑</span>
       </div>
     </a>
-  </div>
-
-  <!-- 魔法阵 -->
-  <div class="section">
-    <div class="section-title">魔法阵</div>
-  </div>
-  <div class="grid">
     <a class="card theme-gold" href="magic/magic-circle-gesture.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #150a00, #200500);">🔮</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #150a00, #200500);">◎</div>
       <div class="card-body">
         <span class="card-tag">魔法</span>
         <div class="card-name">绯红魔法阵</div>
-        <div class="card-desc">终极视觉特效版，随手势运动</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-desc">终极视觉特效版，随手势运动的红色魔法阵。</div>
+        <span class="card-btn">进入法阵</span>
       </div>
     </a>
     <a class="card theme-gold" href="magic/gold-array-explode.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #100a00, #251500);">💫</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #100a00, #251500);">◉</div>
       <div class="card-body">
         <span class="card-tag">魔法</span>
-        <div class="card-name">圣金粒子法阵 · 浑天仪核心版</div>
-        <div class="card-desc">粒子爆炸法阵，浑天仪核心特效</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-name">圣金粒子法阵</div>
+        <div class="card-desc">粒子爆炸法阵与浑天仪核心特效。</div>
+        <span class="card-btn">点亮核心</span>
       </div>
     </a>
     <a class="card theme-gold" href="magic/grand-spirit-array.html">
-      <div class="card-icon" style="background: linear-gradient(135deg, #150800, #200e00);">🌟</div>
+      <div class="card-icon" style="background: linear-gradient(135deg, #150800, #200e00);">✧</div>
       <div class="card-body">
         <span class="card-tag">魔法</span>
-        <div class="card-name">圣金粒子法阵 · 终极复合版</div>
-        <div class="card-desc">大通灵阵，终极复合加粗版</div>
-        <span class="card-btn">进入体验 →</span>
+        <div class="card-name">大通灵阵</div>
+        <div class="card-desc">终极复合金色法阵，适合做沉浸式视觉背景。</div>
+        <span class="card-btn">开启法阵</span>
       </div>
     </a>
   </div>
 
-  <footer>赛博粒子交互 &nbsp;·&nbsp; CYBER PARTICLE INTERACTIVE &nbsp;·&nbsp; 2024</footer>
+  <section class="guide" id="guide">
+    <div class="guide-inner">
+      <div class="guide-card">
+        <h2>生成专属链接</h2>
+        <p>进入任意体验页，点击右上角分享，填写名字和祝福语，复制带参数的链接发送给朋友。</p>
+      </div>
+      <div class="guide-card">
+        <h2>适合节日传播</h2>
+        <p>520、七夕、生日、圣诞、新年都可以围绕同一套模板快速换文案，承接搜索和社交分享流量。</p>
+      </div>
+      <div class="guide-card">
+        <h2>广告与赞助位</h2>
+        <p>页面已经预留广告区域。通过审核后可替换为 AdSense，也可以出售素材下载、模板定制或品牌赞助位。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>赛博粒子交互 · CYBER PARTICLE INTERACTIVE · 在线互动特效工具站</footer>
 </div>
 
+<script src="assets/site-enhance.js" defer></script>
 <script>
-// 粒子背景动画
 (function() {
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
 
   function resize() {
-    canvas.width  = window.innerWidth;
+    canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
   resize();
@@ -386,32 +538,27 @@
       dx: (Math.random() - 0.5) * 0.4,
       dy: (Math.random() - 0.5) * 0.4,
       alpha: Math.random() * 0.6 + 0.1,
-      hue: Math.random() < 0.5 ? 180 : (Math.random() < 0.5 ? 300 : 260),
+      hue: Math.random() < 0.5 ? 180 : (Math.random() < 0.5 ? 306 : 260)
     });
   }
 
-  // 连线距离
   const MAX_DIST = 120;
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 更新位置
     for (const p of particles) {
       p.x += p.dx;
       p.y += p.dy;
-      if (p.x < 0)              p.x = canvas.width;
-      if (p.x > canvas.width)   p.x = 0;
-      if (p.y < 0)              p.y = canvas.height;
-      if (p.y > canvas.height)  p.y = 0;
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
     }
-
-    // 画连线
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const a = particles[i], b = particles[j];
         const dx = a.x - b.x, dy = a.y - b.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < MAX_DIST) {
           const alpha = (1 - dist / MAX_DIST) * 0.15;
           ctx.strokeStyle = `rgba(0,245,255,${alpha})`;
@@ -423,15 +570,12 @@
         }
       }
     }
-
-    // 画粒子
     for (const p of particles) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${p.hue},100%,70%,${p.alpha})`;
       ctx.fill();
     }
-
     requestAnimationFrame(draw);
   }
   draw();
